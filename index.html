@@ -1,0 +1,3102 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>彈珠台</title>
+  <style>
+    
+    :root {
+      --win-bg: #1e2433;
+      --win-panel: #252c3f;
+      --win-border-light: #4a5778;
+      --win-border-dark: #10141d;
+      --lcd-bg: #070d09;
+      --lcd-green: #39ff14;
+      --lcd-amber: #ffb000;
+      --lcd-cyan: #00f0ff;
+      --lcd-red: #ff2a55;
+      --theme-accent: #38bdf8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(circle at center, #141928 0%, #070910 100%);
+      font-family: "Segoe UI", "Microsoft JhengHei", Tahoma, Geneva, Verdana, sans-serif;
+      color: #e2e8f0;
+      touch-action: none;
+    }
+
+    /* 瘋狂模式邊框光暈特效 */
+    body.mode-multiball { --theme-accent: #ff2a55; }
+    body.mode-antigrav { --theme-accent: #c084fc; }
+    body.mode-bullettime { --theme-accent: #39ff14; }
+    body.mode-giant { --theme-accent: #fbbf24; }
+
+    /* 主應用程式容器 */
+    #app-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+
+    /* 經典標題列 */
+    #win-titlebar {
+      height: 32px;
+      min-height: 32px;
+      background: linear-gradient(90deg, #0a246a 0%, #3a6ea5 50%, #0a246a 100%);
+      border-bottom: 2px solid #081845;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      z-index: 20;
+    }
+
+    .title-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .title-icon {
+      width: 16px;
+      height: 16px;
+      min-width: 16px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff, var(--theme-accent) 40%, #1e3a8a 90%);
+      box-shadow: 0 0 8px var(--theme-accent);
+    }
+
+    .title-controls {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .win-btn {
+      background: linear-gradient(180deg, #3c4866 0%, #242c40 100%);
+      border: 1px solid #64748b;
+      border-bottom-color: #0f172a;
+      border-right-color: #0f172a;
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.1s ease;
+    }
+
+    .win-btn:hover {
+      background: linear-gradient(180deg, #4b597d 0%, #2d374f 100%);
+      border-color: #94a3b8;
+    }
+
+    .win-btn:active {
+      transform: translateY(1px);
+      background: #1e2433;
+    }
+
+    /* 主工作區 */
+    #main-workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* 彈珠台 Canvas 視口 */
+    #table-viewport {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: radial-gradient(ellipse at 50% 40%, #161d33 0%, #06080f 100%);
+    }
+
+    #pinball-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 經典復古儀表板 (Dashboard) */
+    #dashboard-panel {
+      width: 300px;
+      min-width: 280px;
+      background: linear-gradient(180deg, #232a3d 0%, #161b28 100%);
+      border-left: 3px solid var(--win-border-light);
+      box-shadow: inset 2px 0 8px rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 15;
+      overflow-y: auto;
+    }
+
+    .panel-box {
+      background: #131722;
+      border: 2px solid #333e59;
+      border-top-color: #0b0e14;
+      border-left-color: #0b0e14;
+      border-radius: 6px;
+      padding: 7px 9px;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.8);
+    }
+
+    .panel-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #7dd3fc;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* LCD 數位顯示器 */
+    .lcd-display {
+      background: var(--lcd-bg);
+      border: 1px solid #1e293b;
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-family: "Courier New", Courier, monospace;
+      font-weight: 700;
+      text-align: right;
+      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.9);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .lcd-display::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.18),
+        rgba(0, 0, 0, 0.18) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+      pointer-events: none;
+    }
+
+    .lcd-score {
+      font-size: 23px;
+      color: var(--lcd-green);
+      text-shadow: 0 0 8px rgba(57, 255, 20, 0.6);
+      letter-spacing: 1px;
+    }
+
+    .lcd-high {
+      font-size: 14px;
+      color: var(--lcd-amber);
+      text-shadow: 0 0 6px rgba(255, 176, 0, 0.5);
+    }
+
+    .lcd-status {
+      font-size: 11.5px;
+      color: var(--lcd-cyan);
+      text-shadow: 0 0 6px rgba(0, 240, 255, 0.5);
+      text-align: left;
+      min-height: 34px;
+      line-height: 1.35;
+      display: flex;
+      align-items: center;
+    }
+
+    /* 狀態指標列 (球數與倍率) */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .ball-indicators {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      justify-content: flex-end;
+      height: 22px;
+    }
+
+    .ball-pip {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      transition: all 0.25s ease;
+    }
+
+    .ball-pip.active {
+      background: radial-gradient(circle at 35% 35%, #ffffff, #cbd5e1 45%, #475569 95%);
+      box-shadow: 0 0 8px #38bdf8;
+      border-color: #e0f2fe;
+    }
+
+    .multiplier-badge {
+      font-family: "Courier New", monospace;
+      font-size: 17px;
+      font-weight: 800;
+      color: #f472b6;
+      text-shadow: 0 0 8px rgba(244, 114, 182, 0.7);
+      text-align: right;
+    }
+
+    /* 太空軍階與子彈時間能量條 */
+    .rank-bar-bg {
+      width: 100%;
+      height: 7px;
+      background: #0f172a;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 5px;
+      border: 1px solid #1e293b;
+    }
+
+    .rank-bar-fill {
+      height: 100%;
+      width: 10%;
+      background: linear-gradient(90deg, #0284c7, #38bdf8, #818cf8);
+      box-shadow: 0 0 8px #38bdf8;
+      transition: width 0.25s ease;
+    }
+
+    .bullet-bar-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #16a34a, #39ff14);
+      box-shadow: 0 0 8px #39ff14;
+      transition: width 0.1s linear;
+    }
+
+    /* 瘋狂模式狀態徽章列 */
+    .chaos-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      min-height: 22px;
+    }
+
+    .chaos-tag {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(56, 189, 248, 0.18);
+      border: 1px solid #38bdf8;
+      color: #e0f2fe;
+      animation: pulseTag 0.8s infinite alternate;
+    }
+
+    @keyframes pulseTag {
+      from { opacity: 0.75; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1.02); }
+    }
+
+    /* 操作指南卡片 */
+    .controls-guide {
+      font-size: 10.5px;
+      color: #94a3b8;
+      line-height: 1.48;
+    }
+
+    .key-cap {
+      display: inline-block;
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      padding: 0 4px;
+      font-family: monospace;
+      font-size: 10px;
+      color: #f1f5f9;
+    }
+
+    /* 手機版精簡頂部狀態列 */
+    #mobile-hud {
+      display: none;
+      background: #111624;
+      border-bottom: 1px solid #2d3852;
+      padding: 5px 8px;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+      z-index: 16;
+    }
+
+    .mobile-hud-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mobile-hud-label {
+      font-size: 9px;
+      color: #7dd3fc;
+      letter-spacing: 0.6px;
+    }
+
+    .mobile-hud-val {
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--lcd-green);
+      text-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
+    }
+
+    #mobile-ticker {
+      flex: 1;
+      background: #070d09;
+      border: 1px solid #1e293b;
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-family: "Courier New", monospace;
+      font-size: 10.5px;
+      color: var(--lcd-cyan);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    /* 觸控操作覆蓋層 (行動裝置與觸控螢幕) */
+    #touch-controls-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 12;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .touch-action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 8px 10px 12px 10px;
+      width: 100%;
+      pointer-events: none;
+    }
+
+    .touch-zone-btn {
+      pointer-events: auto;
+      background: rgba(30, 41, 59, 0.45);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border: 1.5px solid rgba(56, 189, 248, 0.45);
+      border-radius: 14px;
+      color: rgba(224, 242, 254, 0.9);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.45);
+      transition: transform 0.06s ease, background 0.08s ease, border-color 0.08s ease;
+    }
+
+    .touch-zone-btn.pressed {
+      background: rgba(14, 165, 233, 0.5);
+      border-color: #38bdf8;
+      transform: scale(0.95);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.7);
+    }
+
+    .touch-flipper {
+      width: 32%;
+      max-width: 145px;
+      height: 76px;
+    }
+
+    .touch-center-group {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    .touch-plunger {
+      width: 72px;
+      height: 54px;
+      border-color: rgba(244, 114, 182, 0.6);
+      background: rgba(88, 28, 135, 0.5);
+      color: #fbcfe8;
+    }
+
+    .touch-plunger.pressed {
+      background: rgba(219, 39, 119, 0.65);
+      border-color: #f472b6;
+      box-shadow: 0 0 18px rgba(244, 114, 182, 0.8);
+    }
+
+    .touch-bullet {
+      width: 66px;
+      height: 54px;
+      border-color: rgba(57, 255, 20, 0.55);
+      background: rgba(20, 83, 45, 0.5);
+      color: #bbf7d0;
+    }
+
+    .touch-bullet.pressed {
+      background: rgba(34, 197, 94, 0.65);
+      border-color: #39ff14;
+      box-shadow: 0 0 18px rgba(57, 255, 20, 0.8);
+    }
+
+    /* 遊戲開始 / 結束 / 排行榜 Modal 覆蓋視窗 */
+    #overlay-modal {
+      position: absolute;
+      inset: 0;
+      background: rgba(6, 9, 19, 0.84);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      padding: 16px;
+    }
+
+    #overlay-modal.hidden {
+      display: none;
+    }
+
+    .modal-window {
+      width: 100%;
+      max-width: 420px;
+      background: linear-gradient(180deg, #252e44 0%, #151a28 100%);
+      border: 2px solid #4f628e;
+      border-radius: 10px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(56, 189, 248, 0.3);
+      overflow: hidden;
+      animation: modalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      background: linear-gradient(90deg, #0a246a, #701a75);
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 13px;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 16px;
+      text-align: center;
+    }
+
+    .modal-title {
+      font-size: 21px;
+      font-weight: 800;
+      background: linear-gradient(90deg, #38bdf8, #f472b6, #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 5px;
+    }
+
+    .modal-subtitle {
+      font-size: 11.5px;
+      color: #94a3b8;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .final-score-box {
+      background: #070d09;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+
+    .final-score-val {
+      font-family: "Courier New", monospace;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--lcd-green);
+      text-shadow: 0 0 10px rgba(57, 255, 20, 0.6);
+    }
+
+    .leaderboard-list {
+      background: #0f1420;
+      border: 1px solid #28334d;
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .lb-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #7dd3fc;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .lb-row {
+      display: flex;
+      justify-content: space-between;
+      font-family: "Courier New", monospace;
+      font-size: 12.5px;
+      padding: 3px 4px;
+      border-bottom: 1px dashed #1e293b;
+      color: #cbd5e1;
+    }
+
+    .lb-row:last-child {
+      border-bottom: none;
+    }
+
+    .lb-row.highlight {
+      color: #fbbf24;
+      font-weight: 700;
+    }
+
+    .primary-cta {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(14, 165, 233, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+      transition: all 0.15s ease;
+    }
+
+    .primary-cta:hover {
+      background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 100%);
+      transform: translateY(-1px);
+    }
+
+    .primary-cta:active {
+      transform: translateY(1px);
+    }
+
+    /* ==========================================================================
+       響應式跨裝置佈局適配 (Mobile / Tablet / Desktop)
+       ========================================================================== */
+    @media (max-width: 820px) {
+      #main-workspace {
+        flex-direction: column;
+      }
+      #dashboard-panel {
+        display: none;
+      }
+      #mobile-hud {
+        display: flex;
+      }
+    }
+
+    @media (min-width: 821px) {
+      .touch-flipper {
+        height: 52px;
+        max-width: 115px;
+        opacity: 0.55;
+      }
+      .touch-plunger, .touch-bullet {
+        height: 46px;
+        opacity: 0.7;
+      }
+      .touch-flipper:hover, .touch-plunger:hover, .touch-bullet:hover {
+        opacity: 0.98;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app-container">
+    <!-- 經典 Windows 視窗標題列 -->
+    <header id="win-titlebar">
+      <div class="title-left">
+        <div class="title-icon"></div>
+        <span>3D Space Pinball: Chaos & Multi-Ball</span>
+      </div>
+      <div class="title-controls">
+        <button id="btn-sound" class="win-btn" title="切換音效">🔊 音效: 開</button>
+        <button id="btn-tilt" class="win-btn" title="搖晃機台 (X / ↑)">⚡ 搖晃</button>
+        <button id="btn-restart" class="win-btn" title="重新開始新局">🔄 新局</button>
+      </div>
+    </header>
+
+    <!-- 手機/平板專用精簡頂部 LCD 狀態列 -->
+    <div id="mobile-hud">
+      <div class="mobile-hud-group">
+        <span class="mobile-hud-label">SCORE</span>
+        <span id="mob-score" class="mobile-hud-val">0</span>
+      </div>
+      <div id="mobile-ticker">準備發射！按住發射鍵蓄力</div>
+      <div class="mobile-hud-group" style="align-items: flex-end;">
+        <span class="mobile-hud-label">BALLS / MULT</span>
+        <span id="mob-balls-mult" class="mobile-hud-val" style="color: #38bdf8;">3 ● 1x</span>
+      </div>
+    </div>
+
+    <!-- 主工作區 -->
+    <div id="main-workspace">
+      <!-- 彈珠台主遊戲畫布區 -->
+      <div id="table-viewport">
+        <canvas id="pinball-canvas"></canvas>
+
+        <!-- 跨裝置多點觸控與快速操作覆蓋層 -->
+        <div id="touch-controls-layer">
+          <div class="touch-action-bar">
+            <button id="touch-left" class="touch-zone-btn touch-flipper" aria-label="左擋板">
+              <span>◀ 左擋板</span>
+              <span style="font-size: 9px; opacity: 0.75;">Z / ◀</span>
+            </button>
+
+            <div class="touch-center-group">
+              <button id="touch-bullet" class="touch-zone-btn touch-bullet" aria-label="子彈時間">
+                <span>⏳ 慢動作</span>
+                <span style="font-size: 9px; opacity: 0.85;">按住 (C)</span>
+              </button>
+              <button id="touch-plunger" class="touch-zone-btn touch-plunger" aria-label="發射器">
+                <span>🚀 發射</span>
+                <span style="font-size: 9px; opacity: 0.85;">長按蓄力</span>
+              </button>
+            </div>
+
+            <button id="touch-right" class="touch-zone-btn touch-flipper" aria-label="右擋板">
+              <span>右擋板 ▶</span>
+              <span style="font-size: 9px; opacity: 0.75;">/ / M / ▶</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 開始 / 遊戲結束 / 最高分排行榜視窗 -->
+        <div id="overlay-modal">
+          <div class="modal-window">
+            <div class="modal-header">
+              <span id="modal-win-title">CHAOS & MULTI-BALL EDITION</span>
+              <span>★ 3D PINBALL</span>
+            </div>
+            <div class="modal-body">
+              <div id="modal-heading" class="modal-title">太空立體彈珠台：瘋狂大亂鬥</div>
+              <div id="modal-sub" class="modal-subtitle">
+                真實中央死穴張力 • 3球大亂鬥 • 瘋狂輪盤 • 反重力風暴 • 移動UFO
+              </div>
+
+              <div id="final-score-container" class="final-score-box" style="display: none;">
+                <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">FINAL SCORE 最終得分</div>
+                <div id="modal-final-score" class="final-score-val">0</div>
+                <div id="modal-rank-achieved" style="font-size: 12px; color: #38bdf8; margin-top: 4px;">軍階：太空見習生</div>
+              </div>
+
+              <div class="leaderboard-list">
+                <div class="lb-title">🏆 本地最高分排行榜 (TOP 5)</div>
+                <div id="lb-entries"></div>
+              </div>
+
+              <button id="btn-start-game" class="primary-cta">🚀 啟動瘋狂彈珠台 (START)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 桌面版右側經典儀表板 -->
+      <aside id="dashboard-panel">
+        <div class="panel-box">
+          <div class="panel-label">
+            <span>PLAYER 1 SCORE</span>
+            <span id="desk-rank-badge" style="color: #fbbf24;">CADET</span>
+          </div>
+          <div id="desk-score" class="lcd-display lcd-score">0</div>
+          <div class="rank-bar-bg">
+            <div id="desk-rank-bar" class="rank-bar-fill"></div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="panel-box">
+            <div class="panel-label"><span>BALLS</span></div>
+            <div id="desk-balls" class="ball-indicators">
+              <div class="ball-pip active"></div>
+              <div class="ball-pip active"></div>
+              <div class="ball-pip active"></div>
+            </div>
+          </div>
+          <div class="panel-box">
+            <div class="panel-label"><span>MULTIPLIER</span></div>
+            <div id="desk-mult" class="multiplier-badge">1x</div>
+          </div>
+        </div>
+
+        <div class="panel-box">
+          <div class="panel-label">
+            <span>⏳ BULLET TIME ENERGY</span>
+            <span id="desk-bt-pct" style="color: #39ff14;">100%</span>
+          </div>
+          <div class="rank-bar-bg" style="margin-top: 2px;">
+            <div id="desk-bt-bar" class="bullet-bar-fill"></div>
+          </div>
+        </div>
+
+        <div class="panel-box">
+          <div class="panel-label"><span>ACTIVE CHAOS EFFECTS</span></div>
+          <div id="desk-chaos-tags" class="chaos-badges">
+            <span style="font-size: 10px; color: #64748b;">無特殊狀態 (NORMAL)</span>
+          </div>
+        </div>
+
+        <div class="panel-box">
+          <div class="panel-label"><span>MISSION COMPUTER</span></div>
+          <div id="desk-mission-text" class="lcd-display lcd-status">系統就緒。長按空白鍵或發射鈕將彈珠射入軌道！</div>
+        </div>
+
+        <div class="panel-box">
+          <div class="panel-label"><span>HIGH SCORE</span></div>
+          <div id="desk-highscore" class="lcd-display lcd-high">0</div>
+        </div>
+
+        <div class="panel-box controls-guide">
+          <div class="panel-label" style="margin-bottom: 4px;"><span>FLIGHT CONTROLS 操作與機關</span></div>
+          <div>• 左右擋板：<span class="key-cap">Z</span>/<span class="key-cap">←</span> 與 <span class="key-cap">/</span>/<span class="key-cap">M</span>/<span class="key-cap">→</span></div>
+          <div>• 發射蓄力：<span class="key-cap">Space</span> 長按放開</div>
+          <div>• 子彈時間：<span class="key-cap">C</span> 按住減速精準救球</div>
+          <div>• 搖晃機台：<span class="key-cap">X</span>/<span class="key-cap">↑</span> (連續3次 TILT)</div>
+          <div style="margin-top: 5px; color: #f472b6; font-weight: 700;">🎲 瘋狂機關指南：</div>
+          <div style="font-size: 10px; color: #cbd5e1;">
+            • <b>LOCK 鎖定槽</b>：集滿 3 顆觸發<b>3球大亂鬥</b>！<br/>
+            • <b>右側黑洞轉盤</b>：隨機抽巨無霸球、雙倍擋板、護盾或大獎！<br/>
+            • <b>上方移動 UFO</b>：擊爆掉落高分寶物；左側靶子可充能<b>雷射救球器</b>！
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ============================================================================
+     * 3D SPACE PINBALL: CHAOS & MULTI-BALL EDITION (完全離線單一檔案)
+     * 升級特色：
+     * 1. 真實中央死穴 (Center Drain) 與左右 Outlane/Inlane 軌道，短擋板高張力控球
+     * 2. Multiball 3球同場物理互撞大亂鬥 (Ball-to-Ball Elastic Collision)
+     * 3. 瘋狂轉盤 (Chaos Roulette)：巨無霸球、迷你極速球、中場雙倍擋板、雷射護盾
+     * 4. 反重力風暴 (Reverse Gravity) 與磁力黑洞牽引
+     * 5. 手動/危急自動子彈時間 (Bullet Time) + Hitstop 頓幀打擊感
+     * 6. 移動式 UFO 飛碟打爆掉落寶物 + 左側 Kickback 雷射救球器
+     * ============================================================================
+     */
+
+    (function () {
+      "use strict";
+
+      /* ==========================================================================
+         1. WEB AUDIO API 復古電子音效合成器 (Zero external assets)
+         ========================================================================== */
+      class RetroAudioSynth {
+        constructor() {
+          this.ctx = null;
+          this.muted = false;
+          this.chargeOsc = null;
+          this.chargeGain = null;
+        }
+
+        init() {
+          if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+              this.ctx = new AudioCtx();
+            }
+          }
+          if (this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume().catch(() => {});
+          }
+        }
+
+        toggleMute() {
+          this.muted = !this.muted;
+          if (this.muted) this.stopChargeSound();
+          return this.muted;
+        }
+
+        playTone(freq, endFreq, duration, type = "sine", volume = 0.2, delay = 0) {
+          if (this.muted) return;
+          this.init();
+          if (!this.ctx) return;
+
+          const now = this.ctx.currentTime + delay;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now);
+          if (endFreq && endFreq !== freq) {
+            osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + duration);
+          }
+
+          gain.gain.setValueAtTime(volume, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + duration + 0.02);
+        }
+
+        playFlipper() {
+          this.playTone(175, 55, 0.075, "triangle", 0.24);
+          this.playTone(460, 130, 0.045, "square", 0.08);
+        }
+
+        playBumper(pitchLevel = 0) {
+          const base = 340 + pitchLevel * 95;
+          this.playTone(base, base * 1.95, 0.13, "sawtooth", 0.2);
+          this.playTone(base * 1.5, base * 0.75, 0.15, "sine", 0.22);
+        }
+
+        playSlingshot() {
+          this.playTone(280, 640, 0.085, "square", 0.16);
+        }
+
+        playBallCollide() {
+          this.playTone(920, 480, 0.045, "sine", 0.12);
+        }
+
+        playRollover(litCount) {
+          const notes = [523.25, 659.25, 783.99];
+          const freq = notes[(litCount - 1) % notes.length] || 523.25;
+          this.playTone(freq, freq * 1.02, 0.14, "sine", 0.22);
+        }
+
+        playTargetHit(remaining) {
+          const freq = remaining === 0 ? 940 : 460 + (3 - remaining) * 115;
+          this.playTone(freq, freq * 1.25, 0.13, "triangle", 0.23);
+        }
+
+        playLevelUp() {
+          const chord = [523.25, 659.25, 783.99, 1046.5];
+          chord.forEach((f, idx) => {
+            this.playTone(f, f * 1.01, 0.26, "triangle", 0.18, idx * 0.06);
+          });
+        }
+
+        // Multiball 警報音效
+        playMultiballAlarm() {
+          for (let i = 0; i < 4; i++) {
+            this.playTone(440, 880, 0.18, "sawtooth", 0.22, i * 0.2);
+            this.playTone(880, 440, 0.18, "square", 0.15, i * 0.2 + 0.1);
+          }
+        }
+
+        // 輪盤轉動與中獎聲
+        playRouletteTick(step) {
+          const f = 380 + (step % 8) * 65;
+          this.playTone(f, f * 1.1, 0.05, "triangle", 0.16);
+        }
+
+        playRouletteWin() {
+          const notes = [587.33, 739.99, 880, 1174.66];
+          notes.forEach((f, idx) => {
+            this.playTone(f, f * 1.03, 0.25, "sawtooth", 0.2, idx * 0.07);
+          });
+        }
+
+        // UFO 飛碟擊爆與雷射救球聲
+        playUfoExplosion() {
+          this.playTone(260, 42, 0.42, "sawtooth", 0.28);
+          this.playTone(680, 95, 0.35, "square", 0.2);
+        }
+
+        playKickbackLaser() {
+          this.playTone(1200, 180, 0.25, "sawtooth", 0.28);
+          this.playTone(850, 1400, 0.18, "sine", 0.22, 0.05);
+        }
+
+        // 反重力切換聲
+        playGravityShift(isReverse) {
+          if (isReverse) {
+            this.playTone(160, 740, 0.45, "sine", 0.24);
+          } else {
+            this.playTone(740, 160, 0.45, "sine", 0.24);
+          }
+        }
+
+        updateChargeSound(ratio) {
+          if (this.muted) return;
+          this.init();
+          if (!this.ctx) return;
+
+          if (!this.chargeOsc) {
+            this.chargeOsc = this.ctx.createOscillator();
+            this.chargeGain = this.ctx.createGain();
+            this.chargeOsc.type = "sawtooth";
+            this.chargeOsc.frequency.setValueAtTime(95, this.ctx.currentTime);
+            this.chargeGain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+            this.chargeOsc.connect(this.chargeGain);
+            this.chargeGain.connect(this.ctx.destination);
+            this.chargeOsc.start();
+          }
+          const targetFreq = 95 + ratio * 260;
+          this.chargeOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.03);
+        }
+
+        stopChargeSound() {
+          if (this.chargeOsc) {
+            try {
+              this.chargeOsc.stop();
+              this.chargeOsc.disconnect();
+            } catch (e) {}
+            this.chargeOsc = null;
+            this.chargeGain = null;
+          }
+        }
+
+        playLaunch(powerRatio) {
+          this.stopChargeSound();
+          const topFreq = 380 + powerRatio * 680;
+          this.playTone(150, topFreq, 0.25, "sawtooth", 0.24);
+          this.playTone(230, topFreq * 1.25, 0.22, "sine", 0.2);
+        }
+
+        playTilt(isLocked) {
+          if (isLocked) {
+            this.playTone(140, 65, 0.5, "sawtooth", 0.3);
+          } else {
+            this.playTone(220, 150, 0.15, "square", 0.2);
+          }
+        }
+
+        playDrain() {
+          this.playTone(340, 80, 0.45, "triangle", 0.25);
+        }
+
+        playGameOver() {
+          const notes = [440, 392, 349.23, 261.63];
+          notes.forEach((f, idx) => {
+            this.playTone(f, f * 0.96, 0.35, "sawtooth", 0.2, idx * 0.16);
+          });
+        }
+      }
+
+      const audio = new RetroAudioSynth();
+
+      /* ==========================================================================
+         2. 2D 向量數學輔助工具
+         ========================================================================== */
+      const Vec2 = {
+        add: (a, b) => ({ x: a.x + b.x, y: a.y + b.y }),
+        sub: (a, b) => ({ x: a.x - b.x, y: a.y - b.y }),
+        mul: (v, s) => ({ x: v.x * s, y: v.y * s }),
+        dot: (a, b) => a.x * b.x + a.y * b.y,
+        len: (v) => Math.hypot(v.x, v.y),
+        closestPointOnSegment: (p, a, b) => {
+          const ab = { x: b.x - a.x, y: b.y - a.y };
+          const lenSq = ab.x * ab.x + ab.y * ab.y;
+          if (lenSq < 1e-6) return { x: a.x, y: a.y };
+          let t = ((p.x - a.x) * ab.x + (p.y - a.y) * ab.y) / lenSq;
+          t = Math.max(0, Math.min(1, t));
+          return { x: a.x + ab.x * t, y: a.y + ab.y * t };
+        }
+      };
+
+      /* ==========================================================================
+         3. 機台幾何規格與 2.5D 透視投影系統
+         ========================================================================== */
+      const TABLE_W = 500;
+      const TABLE_H = 900;
+
+      const PERSPECTIVE = {
+        topScale: 0.85,
+        bottomScale: 1.03
+      };
+
+      function project25D(lx, ly) {
+        const ny = Math.max(-0.1, Math.min(1.1, ly / TABLE_H));
+        const scale = PERSPECTIVE.topScale + (PERSPECTIVE.bottomScale - PERSPECTIVE.topScale) * Math.pow(ny, 0.92);
+        const centerX = TABLE_W * 0.5;
+        const sx = centerX + (lx - centerX) * scale;
+        const sy = TABLE_H * (0.04 + 0.92 * Math.pow(ny, 1.04));
+        return { x: sx, y: sy, scale };
+      }
+
+      /* ==========================================================================
+         4. 遊戲狀態、排行榜與太空軍階系統
+         ========================================================================== */
+      const STORAGE_KEY = "space_cadet_chaos_highscores_v2";
+
+      const RANKS = [
+        { name: "CADET 見習生", minScore: 0 },
+        { name: "ENSIGN 少尉", minScore: 30000 },
+        { name: "LIEUTENANT 中尉", minScore: 90000 },
+        { name: "CAPTAIN 艦長", minScore: 220000 },
+        { name: "COMMODORE 准將", minScore: 450000 },
+        { name: "ADMIRAL 太空上將", minScore: 850000 },
+        { name: "CHAOS OVERLORD 混沌總司令", minScore: 1500000 }
+      ];
+
+      function loadHighScores() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+        } catch (e) {}
+        return [
+          { name: "CHAOS KING", score: 350000 },
+          { name: "CDR. NOVA", score: 220000 },
+          { name: "LT. VEGA", score: 120000 },
+          { name: "ENS. ORION", score: 65000 },
+          { name: "CADET LUNA", score: 25000 }
+        ];
+      }
+
+      function saveHighScore(newScore) {
+        if (newScore <= 0) return loadHighScores();
+        const list = loadHighScores();
+        list.push({ name: "YOU (ACE)", score: Math.floor(newScore), isCurrent: true });
+        list.sort((a, b) => b.score - a.score);
+        const top5 = list.slice(0, 5);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(top5.map(({ name, score }) => ({ name, score }))));
+        } catch (e) {}
+        return top5;
+      }
+
+      /* ==========================================================================
+         5. 彈珠台核心類別 (多球大亂鬥、瘋狂輪盤、UFO、反重力與高張力物理)
+         ========================================================================== */
+      class PinballGame {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.ctx = canvas.getContext("2d");
+
+          // 核心狀態
+          this.state = "MENU"; // MENU, PLAYING, GAMEOVER
+          this.score = 0;
+          this.highScore = loadHighScores()[0].score;
+          this.ballsLeft = 3;
+          this.multiplier = 1;
+          this.comboCount = 0;
+          this.comboTimer = 0;
+          this.missionMessage = "系統就緒！按住發射鍵蓄力，注意中央死穴與兩側漏球道！";
+
+          // 頓幀打擊感 (Hitstop) 與畫面震動
+          this.hitstopTimer = 0;
+          this.shakeOffset = { x: 0, y: 0 };
+          this.shakeIntensity = 0;
+
+          // 搖晃機台 (Tilt)
+          this.tiltCount = 0;
+          this.tiltCooldown = 0;
+          this.isTilted = false;
+
+          // 子彈時間 (Bullet Time)
+          this.bulletTimeEnergy = 100;
+          this.isBulletTimeActive = false;
+
+          // 瘋狂模式與特殊增益計時器 (Chaos Effects)
+          this.chaos = {
+            antiGravityTimer: 0,    // 反重力往上飄
+            giantBallTimer: 0,      // 巨無霸球 (半徑 1.75x)
+            miniSpeedTimer: 0,      // 迷你極速球 (速度 1.35x)
+            doubleFlipperTimer: 0,  // 中場雙倍輔助擋板
+            ballSaverTimer: 0       // 底部死穴雷射護盾
+          };
+
+          // 左側死穴一次性雷射救球器 (Kickback)
+          this.kickbackReady = true;
+          this.kickbackFlash = 0;
+
+          // 鎖定球槽進度 (集滿 3 顆觸發 Multiball)
+          this.lockedBalls = 0;
+
+          // 輸入狀態
+          this.keys = {
+            left: false,
+            right: false,
+            plunger: false,
+            bulletTime: false
+          };
+
+          // 發射器 (Plunger)
+          this.plunger = {
+            x: 467,
+            restY: 810,
+            maxPull: 95,
+            pullAmount: 0,
+            isCharging: false
+          };
+
+          // 單向閘門
+          this.oneWayGate = { openAmount: 0 };
+
+          // 彈珠陣列 (支援 Multiball 多球同時在場)
+          this.balls = [];
+
+          // 主擋板 (縮短長度為 56，中央留下寬闊刺激的死穴缺口！)
+          this.mainFlippers = [
+            {
+              side: "left",
+              pivot: { x: 146, y: 792 },
+              length: 56,
+              radius: 7.5,
+              restAngle: 0.48,
+              activeAngle: -0.46,
+              angle: 0.48,
+              angularVel: 0,
+              isMid: false
+            },
+            {
+              side: "right",
+              pivot: { x: 324, y: 792 },
+              length: 56,
+              radius: 7.5,
+              restAngle: Math.PI - 0.48,
+              activeAngle: Math.PI + 0.46,
+              angle: Math.PI - 0.48,
+              angularVel: 0,
+              isMid: false
+            }
+          ];
+
+          // 中場輔助雙倍擋板 (透過輪盤「雙倍擋板」啟動)
+          this.midFlippers = [
+            {
+              side: "left",
+              pivot: { x: 118, y: 535 },
+              length: 46,
+              radius: 6.5,
+              restAngle: 0.45,
+              activeAngle: -0.45,
+              angle: 0.45,
+              angularVel: 0,
+              isMid: true
+            },
+            {
+              side: "right",
+              pivot: { x: 352, y: 535 },
+              length: 46,
+              radius: 6.5,
+              restAngle: Math.PI - 0.45,
+              activeAngle: Math.PI + 0.45,
+              angle: Math.PI - 0.45,
+              angularVel: 0,
+              isMid: true
+            }
+          ];
+
+          // 3 個經典太空發光圓形保險桿 (Attack Bumpers)
+          this.bumpers = [
+            { id: 0, x: 235, y: 210, radius: 22, color: "#00f0ff", glowColor: "#0284c7", hitAnim: 0, level: 1 },
+            { id: 1, x: 175, y: 278, radius: 22, color: "#f472b6", glowColor: "#be185d", hitAnim: 0, level: 1 },
+            { id: 2, x: 295, y: 278, radius: 22, color: "#fbbf24", glowColor: "#b45309", hitAnim: 0, level: 1 }
+          ];
+
+          // 頂部 3 個 Rollover 倍率通道燈號
+          this.rollovers = [
+            { x: 175, y: 118, radius: 12, lit: false, label: "A" },
+            { x: 235, y: 108, radius: 12, lit: false, label: "B" },
+            { x: 295, y: 118, radius: 12, lit: false, label: "C" }
+          ];
+
+          // 左側 3 個能量目標靶 (Drop Targets - 全擊倒可充能雷射救球器與加分)
+          this.dropTargets = [
+            { x: 74, y: 355, radius: 10.5, down: false },
+            { x: 66, y: 400, radius: 10.5, down: false },
+            { x: 60, y: 445, radius: 10.5, down: false }
+          ];
+
+          // 左上方 MULTIBALL LOCK 鎖定槽
+          this.lockHole = {
+            x: 108,
+            y: 205,
+            radius: 17,
+            cooldown: 0,
+            pulse: 0
+          };
+
+          // 右側 CHAOS ROULETTE 瘋狂賭場黑洞轉盤
+          this.rouletteWheel = {
+            x: 375,
+            y: 355,
+            radius: 21,
+            rotation: 0,
+            spinning: false,
+            spinTimer: 0,
+            cooldown: 0,
+            capturedBall: null,
+            selectedPrize: ""
+          };
+
+          // 中央重力異常反應爐 (Reactor Core - 擊中觸發反重力或磁力漩渦)
+          this.reactor = {
+            x: 235,
+            y: 415,
+            radius: 18,
+            charge: 0, // 0..3 集滿觸發反重力風暴
+            pulse: 0
+          };
+
+          // 頂部移動式 UFO 飛碟
+          this.ufo = {
+            active: true,
+            x: 235,
+            y: 162,
+            vx: 85,
+            radius: 18,
+            hp: 2,
+            respawnTimer: 0,
+            hitFlash: 0
+          };
+
+          // 特效與星空背景
+          this.floatingTexts = [];
+          this.particles = [];
+          this.stars = this.generateStars(90);
+
+          this.buildTableGeometry();
+          this.resize();
+          window.addEventListener("resize", () => this.resize());
+          this.updateUI();
+          this.renderLeaderboard();
+        }
+
+        generateStars(count) {
+          const arr = [];
+          for (let i = 0; i < count; i++) {
+            arr.push({
+              x: Math.random() * TABLE_W,
+              y: Math.random() * TABLE_H,
+              size: 0.7 + Math.random() * 1.8,
+              alpha: 0.25 + Math.random() * 0.75,
+              twinkleSpeed: 1.5 + Math.random() * 3.5
+            });
+          }
+          return arr;
+        }
+
+        buildTableGeometry() {
+          // 精心設計的彈珠台牆壁與真實 Outlane / Inlane 分流結構
+          this.walls = [
+            // 外框左牆與頂部圓弧導軌
+            { a: { x: 26, y: 840 }, b: { x: 26, y: 220 }, rest: 0.6 },
+            { a: { x: 26, y: 220 }, b: { x: 55, y: 120 }, rest: 0.65 },
+            { a: { x: 55, y: 120 }, b: { x: 125, y: 55 }, rest: 0.65 },
+            { a: { x: 125, y: 55 }, b: { x: 235, y: 38 }, rest: 0.65 },
+            { a: { x: 235, y: 38 }, b: { x: 355, y: 55 }, rest: 0.65 },
+            { a: { x: 355, y: 55 }, b: { x: 435, y: 115 }, rest: 0.65 },
+            { a: { x: 435, y: 115 }, b: { x: 484, y: 210 }, rest: 0.7 },
+
+            // 發射通道右外牆與底部
+            { a: { x: 484, y: 210 }, b: { x: 484, y: 840 }, rest: 0.55 },
+            { a: { x: 450, y: 840 }, b: { x: 484, y: 840 }, rest: 0.45 },
+
+            // 發射通道內隔牆
+            { a: { x: 450, y: 840 }, b: { x: 450, y: 230 }, rest: 0.6 },
+            { a: { x: 450, y: 230 }, b: { x: 428, y: 185 }, rest: 0.6 },
+
+            // 主遊戲區右側導牆
+            { a: { x: 428, y: 235 }, b: { x: 440, y: 560 }, rest: 0.6 },
+            { a: { x: 440, y: 560 }, b: { x: 416, y: 635 }, rest: 0.6 },
+
+            // 頂部通道分隔柱 (Rollover Lanes)
+            { a: { x: 145, y: 92 }, b: { x: 145, y: 142 }, rest: 0.75 },
+            { a: { x: 205, y: 85 }, b: { x: 205, y: 138 }, rest: 0.75 },
+            { a: { x: 265, y: 85 }, b: { x: 265, y: 138 }, rest: 0.75 },
+            { a: { x: 325, y: 92 }, b: { x: 325, y: 142 }, rest: 0.75 },
+
+            // 左側上導軌彎角
+            { a: { x: 26, y: 545 }, b: { x: 54, y: 625 }, rest: 0.6 },
+
+            // 【關鍵真實感設計】左側 Outlane (外側死穴) 與 Inlane (內側迴球道)
+            // 外側死穴通道 (x: 26..54)：一旦球掉進這裡會直接衝向底部死穴 (除非 Kickback 啟動！)
+            { a: { x: 54, y: 645 }, b: { x: 54, y: 765 }, rest: 0.55 },
+            { a: { x: 26, y: 775 }, b: { x: 75, y: 855 }, rest: 0.5 }, // 左外死穴斜坡
+
+            // 內側安全導軌 (x: 54..84)：引導球滑向主擋板
+            { a: { x: 84, y: 655 }, b: { x: 84, y: 745 }, rest: 0.55 },
+            { a: { x: 84, y: 745 }, b: { x: 146, y: 792 }, rest: 0.55 },
+
+            // 【關鍵真實感設計】右側 Outlane (外側死穴) 與 Inlane (內側迴球道)
+            { a: { x: 416, y: 645 }, b: { x: 416, y: 765 }, rest: 0.55 },
+            { a: { x: 444, y: 775 }, b: { x: 395, y: 855 }, rest: 0.5 }, // 右外死穴斜坡
+
+            { a: { x: 386, y: 655 }, b: { x: 386, y: 745 }, rest: 0.55 },
+            { a: { x: 386, y: 745 }, b: { x: 324, y: 792 }, rest: 0.55 },
+
+            // 左側三角形彈跳牆 (Left Slingshot - 高彈力斜向快球)
+            { a: { x: 106, y: 635 }, b: { x: 106, y: 722 }, rest: 0.65 },
+            { a: { x: 106, y: 722 }, b: { x: 146, y: 752 }, rest: 0.65 },
+            { a: { x: 146, y: 752 }, b: { x: 106, y: 635 }, rest: 1.75, isSlingshot: true, hitAnim: 0 },
+
+            // 右側三角形彈跳牆 (Right Slingshot)
+            { a: { x: 364, y: 635 }, b: { x: 364, y: 722 }, rest: 0.65 },
+            { a: { x: 364, y: 722 }, b: { x: 324, y: 752 }, rest: 0.65 },
+            { a: { x: 324, y: 752 }, b: { x: 364, y: 635 }, rest: 1.75, isSlingshot: true, hitAnim: 0 }
+          ];
+        }
+
+        createBall(x = 467, y = 780, vx = 0, vy = 0) {
+          return {
+            x,
+            y,
+            vx,
+            vy,
+            baseRadius: 11,
+            radius: 11,
+            trail: [],
+            inRoulette: false,
+            colorTint: "#e2e8f0"
+          };
+        }
+
+        resize() {
+          const viewport = document.getElementById("table-viewport");
+          if (!viewport) return;
+          const rect = viewport.getBoundingClientRect();
+          const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+
+          this.canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+          this.canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+          this.dpr = dpr;
+          this.viewW = rect.width;
+          this.viewH = rect.height;
+
+          const isMobile = window.innerWidth <= 820;
+          const bottomPad = isMobile ? 64 : 14;
+          const topPad = 8;
+          const availW = this.viewW - 14;
+          const availH = Math.max(200, this.viewH - topPad - bottomPad);
+
+          this.renderScale = Math.min(availW / TABLE_W, availH / TABLE_H);
+          this.offsetX = (this.viewW - TABLE_W * this.renderScale) * 0.5;
+          this.offsetY = topPad + (availH - TABLE_H * this.renderScale) * 0.5;
+        }
+
+        startNewGame() {
+          audio.init();
+          this.score = 0;
+          this.ballsLeft = 3;
+          this.multiplier = 1;
+          this.comboCount = 0;
+          this.comboTimer = 0;
+          this.state = "PLAYING";
+          this.isTilted = false;
+          this.tiltCount = 0;
+          this.bulletTimeEnergy = 100;
+          this.lockedBalls = 0;
+          this.kickbackReady = true;
+
+          // 重置瘋狂模式計時器
+          this.chaos = {
+            antiGravityTimer: 0,
+            giantBallTimer: 0,
+            miniSpeedTimer: 0,
+            doubleFlipperTimer: 0,
+            ballSaverTimer: 12 // 開局贈送 12 秒新手保護雷射護盾
+          };
+
+          this.rollovers.forEach((r) => (r.lit = false));
+          this.dropTargets.forEach((t) => (t.down = false));
+          this.bumpers.forEach((b) => {
+            b.level = 1;
+            b.hitAnim = 0;
+          });
+
+          this.ufo.active = true;
+          this.ufo.hp = 2;
+          this.ufo.x = 235;
+
+          this.rouletteWheel.spinning = false;
+          this.rouletteWheel.capturedBall = null;
+
+          this.resetSingleBallToPlunger();
+          this.setMission("🚀 任務啟動！開局 12 秒死穴護盾已開啟，盡情衝撞機關！");
+          this.updateUI();
+          document.getElementById("overlay-modal").classList.add("hidden");
+        }
+
+        resetSingleBallToPlunger() {
+          this.balls = [this.createBall(467, 780, 0, 0)];
+          this.plunger.pullAmount = 0;
+          this.plunger.isCharging = false;
+          this.isTilted = false;
+          this.tiltCount = 0;
+          this.oneWayGate.openAmount = 0;
+        }
+
+        setMission(msg) {
+          this.missionMessage = msg;
+          this.updateUI();
+        }
+
+        addScreenShake(amount) {
+          this.shakeIntensity = Math.min(22, Math.max(this.shakeIntensity, amount));
+        }
+
+        triggerHitstop(duration = 0.025) {
+          this.hitstopTimer = Math.max(this.hitstopTimer, duration);
+        }
+
+        addScore(points, worldX, worldY, label = "", color = "#38bdf8") {
+          const comboBonus = 1 + Math.min(2, this.comboCount * 0.15);
+          const earned = Math.round(points * this.multiplier * comboBonus);
+          this.score += earned;
+          if (this.score > this.highScore) {
+            this.highScore = this.score;
+          }
+          if (worldX !== undefined && worldY !== undefined) {
+            this.floatingTexts.push({
+              x: worldX,
+              y: worldY,
+              text: label || `+${earned.toLocaleString()}`,
+              life: 1.0,
+              color
+            });
+          }
+          this.updateUI();
+        }
+
+        spawnParticles(x, y, color, count = 14, speed = 250) {
+          for (let i = 0; i < count; i++) {
+            const ang = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
+            const spd = speed * (0.35 + Math.random() * 0.85);
+            this.particles.push({
+              x,
+              y,
+              vx: Math.cos(ang) * spd,
+              vy: Math.sin(ang) * spd,
+              life: 0.4 + Math.random() * 0.35,
+              maxLife: 0.75,
+              color,
+              size: 2 + Math.random() * 2.8
+            });
+          }
+        }
+
+        triggerTilt() {
+          if (this.state !== "PLAYING" || this.isTilted) return;
+          if (this.tiltCooldown > 0) return;
+
+          this.tiltCooldown = 0.4;
+          this.tiltCount++;
+          this.addScreenShake(14);
+
+          for (const b of this.balls) {
+            if (!b.inRoulette) {
+              b.vx += (Math.random() - 0.5) * 320;
+              b.vy -= 170;
+            }
+          }
+
+          if (this.tiltCount >= 3) {
+            this.isTilted = true;
+            audio.playTilt(true);
+            this.setMission("⚠️ TILT 鎖死！擋板暫時失效，請勿過度搖晃！");
+          } else {
+            audio.playTilt(false);
+            this.setMission(`⚡ 搖晃警告 (${this.tiltCount}/3)！再次搖晃將導致 TILT！`);
+          }
+        }
+
+        /* ========================================================================
+           6. 啟動瘋狂大亂鬥 (MULTIBALL MADNESS) 與輪盤抽獎 (CHAOS ROULETTE)
+           ======================================================================== */
+        activateMultiball() {
+          audio.playMultiballAlarm();
+          this.addScreenShake(18);
+          this.triggerHitstop(0.06);
+          this.chaos.ballSaverTimer = Math.max(this.chaos.ballSaverTimer, 10);
+
+          // 釋放額外 2 顆高速彈珠，連同場上原本的球共 3 顆大亂鬥！
+          const spawnPoints = [
+            { x: 120, y: 220, vx: 260, vy: 180 },
+            { x: 350, y: 220, vx: -260, vy: 180 }
+          ];
+          for (const sp of spawnPoints) {
+            const nb = this.createBall(sp.x, sp.y, sp.vx, sp.vy);
+            nb.colorTint = "#ff2a55";
+            this.balls.push(nb);
+            this.spawnParticles(sp.x, sp.y, "#ff2a55", 20, 300);
+          }
+
+          this.addScore(25000, 235, 300, "🔥 MULTIBALL x3 MADNESS! 🔥", "#ff2a55");
+          this.setMission("🚨 MULTIBALL 警報！3 顆彈珠同時狂暴亂鬥，死穴護盾同步開啟 10 秒！");
+        }
+
+        triggerChaosRoulettePrize(ball) {
+          const prizes = [
+            { id: "GIANT", label: "🦖 巨無霸破壞球 (15秒)！撞擊範圍與得分暴增！" },
+            { id: "DOUBLE_FLIP", label: "⚔️ 雙倍中場擋板 (18秒)！中場出現第二組護衛擋板！" },
+            { id: "ANTIGRAV", label: "🌌 反重力風暴 (10秒)！重力反轉往上吸，瘋狂連擊！" },
+            { id: "SHIELD", label: "🛡️ 死穴雷射護盾 (15秒)！底部全面防護無敵！" },
+            { id: "JACKPOT", label: "💎 100,000 超級混沌大獎！分數直接暴衝！" }
+          ];
+          const chosen = prizes[Math.floor(Math.random() * prizes.length)];
+          audio.playRouletteWin();
+          this.addScreenShake(15);
+
+          if (chosen.id === "GIANT") {
+            this.chaos.giantBallTimer = 15;
+            this.addScore(10000, this.rouletteWheel.x, this.rouletteWheel.y, "GIANT BALL!", "#fbbf24");
+          } else if (chosen.id === "DOUBLE_FLIP") {
+            this.chaos.doubleFlipperTimer = 18;
+            this.addScore(10000, this.rouletteWheel.x, this.rouletteWheel.y, "DOUBLE FLIPPERS!", "#38bdf8");
+          } else if (chosen.id === "ANTIGRAV") {
+            this.chaos.antiGravityTimer = 10;
+            audio.playGravityShift(true);
+            this.addScore(10000, this.rouletteWheel.x, this.rouletteWheel.y, "ZERO-G STORM!", "#c084fc");
+          } else if (chosen.id === "SHIELD") {
+            this.chaos.ballSaverTimer = 15;
+            this.addScore(10000, this.rouletteWheel.x, this.rouletteWheel.y, "LASER SHIELD!", "#39ff14");
+          } else if (chosen.id === "JACKPOT") {
+            this.addScore(100000, 235, 340, "💎 JACKPOT +100,000! 💎", "#fbbf24");
+          }
+
+          // 將球高速甩出輪盤
+          ball.inRoulette = false;
+          const outAngle = Math.PI * 0.75 + (Math.random() - 0.5) * 0.6;
+          ball.vx = Math.cos(outAngle) * 680;
+          ball.vy = Math.sin(outAngle) * 680;
+          this.rouletteWheel.cooldown = 3.0;
+          this.spawnParticles(this.rouletteWheel.x, this.rouletteWheel.y, "#fbbf24", 24, 320);
+          this.setMission(`🎰 混沌輪盤中獎：${chosen.label}`);
+        }
+
+        /* ========================================================================
+           7. 主物理與遊戲邏輯更新
+           ======================================================================== */
+        update(rawDt) {
+          const dt = Math.min(rawDt, 0.033);
+
+          // 頓幀打擊感暫停物理，保留畫面震動
+          if (this.hitstopTimer > 0) {
+            this.hitstopTimer -= dt;
+            this.updateShake(dt);
+            return;
+          }
+
+          this.updateShake(dt);
+          if (this.tiltCooldown > 0) this.tiltCooldown -= dt;
+          if (this.kickbackFlash > 0) this.kickbackFlash = Math.max(0, this.kickbackFlash - dt * 2.5);
+
+          // 連擊計時器
+          if (this.comboTimer > 0) {
+            this.comboTimer -= dt;
+            if (this.comboTimer <= 0) this.comboCount = 0;
+          }
+
+          // 更新瘋狂模式計時器與 body 主題樣式
+          this.updateChaosTimers(dt);
+
+          // 更新輪盤轉動與冷卻
+          this.rouletteWheel.rotation += dt * (this.rouletteWheel.spinning ? 18 : 2.5);
+          if (this.rouletteWheel.cooldown > 0) this.rouletteWheel.cooldown -= dt;
+          if (this.lockHole.cooldown > 0) this.lockHole.cooldown -= dt;
+          this.lockHole.pulse += dt * 5;
+          this.reactor.pulse += dt * 4;
+
+          // 更新保險桿、Slingshot 動畫
+          for (const b of this.bumpers) {
+            if (b.hitAnim > 0) b.hitAnim = Math.max(0, b.hitAnim - dt * 5);
+          }
+          for (const w of this.walls) {
+            if (w.isSlingshot && w.hitAnim > 0) w.hitAnim = Math.max(0, w.hitAnim - dt * 6);
+          }
+
+          // 更新移動式 UFO 飛碟
+          this.updateUfo(dt);
+
+          // 更新浮動文字與粒子
+          for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const ft = this.floatingTexts[i];
+            ft.y -= 48 * dt;
+            ft.life -= dt * 1.1;
+            if (ft.life <= 0) this.floatingTexts.splice(i, 1);
+          }
+          for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life -= dt;
+            if (p.life <= 0) this.particles.splice(i, 1);
+          }
+
+          if (this.state !== "PLAYING") return;
+
+          // 子彈時間能量消耗與自動回復
+          if (this.keys.bulletTime && this.bulletTimeEnergy > 2 && !this.isTilted) {
+            this.isBulletTimeActive = true;
+            this.bulletTimeEnergy = Math.max(0, this.bulletTimeEnergy - 38 * dt);
+          } else {
+            this.isBulletTimeActive = false;
+            this.bulletTimeEnergy = Math.min(100, this.bulletTimeEnergy + 14 * dt);
+          }
+
+          // 時間縮放倍率 (子彈時間開啟時物理時間放慢為 0.42 倍，但擋板依然全速反應！)
+          const timeScale = this.isBulletTimeActive ? 0.42 : 1.0;
+          const physDt = dt * timeScale;
+
+          // 處理轮盤捕獲中的彈珠
+          if (this.rouletteWheel.spinning && this.rouletteWheel.capturedBall) {
+            const cb = this.rouletteWheel.capturedBall;
+            this.rouletteWheel.spinTimer -= dt;
+            const orbitAng = this.rouletteWheel.rotation * 1.5;
+            cb.x = this.rouletteWheel.x + Math.cos(orbitAng) * 8;
+            cb.y = this.rouletteWheel.y + Math.sin(orbitAng) * 8;
+
+            if (Math.floor((1.4 - this.rouletteWheel.spinTimer) * 12) !== this.rouletteWheel.lastTick) {
+              this.rouletteWheel.lastTick = Math.floor((1.4 - this.rouletteWheel.spinTimer) * 12);
+              audio.playRouletteTick(this.rouletteWheel.lastTick);
+            }
+
+            if (this.rouletteWheel.spinTimer <= 0) {
+              this.rouletteWheel.spinning = false;
+              this.rouletteWheel.capturedBall = null;
+              this.triggerChaosRoulettePrize(cb);
+            }
+          }
+
+          // 發射器蓄力與彈射控制
+          if (this.keys.plunger) {
+            this.plunger.isCharging = true;
+            this.plunger.pullAmount = Math.min(this.plunger.maxPull, this.plunger.pullAmount + 125 * dt);
+            audio.updateChargeSound(this.plunger.pullAmount / this.plunger.maxPull);
+          } else if (this.plunger.isCharging) {
+            const ratio = Math.max(0.28, this.plunger.pullAmount / this.plunger.maxPull);
+            const launchSpeed = 980 + ratio * 1050;
+            this.plunger.isCharging = false;
+            this.plunger.pullAmount = 0;
+            audio.playLaunch(ratio);
+
+            for (const b of this.balls) {
+              if (b.x > 445 && b.y > 680) {
+                b.vy = -launchSpeed;
+                b.vx = -18 - Math.random() * 18;
+                this.spawnParticles(b.x, b.y + 10, "#38bdf8", 16, 260);
+              }
+            }
+          }
+
+          // 更新彈珠半徑 (巨無霸球效果)
+          const targetRadius = this.chaos.giantBallTimer > 0 ? 18.5 : 11;
+          for (const b of this.balls) {
+            b.radius += (targetRadius - b.radius) * 10 * dt;
+            if (b.x > 448 && b.y > 740 && Math.abs(b.vy) < 40 && this.plunger.isCharging) {
+              b.y = 780 + this.plunger.pullAmount * 0.72;
+              b.vy = 0;
+            }
+          }
+
+          // 高精度 12 步子步進物理迭代
+          const subSteps = 12;
+          const subPhysDt = physDt / subSteps;
+          const subRealDt = dt / subSteps; // 擋板保持全速揮擊，子彈時間救球超爽！
+
+          // 重力方向：正常向下 +760 (更具速度張力)，反重力風暴時向上 -340！
+          const gravity = this.chaos.antiGravityTimer > 0 ? -340 : 760;
+
+          for (let step = 0; step < subSteps; step++) {
+            this.updateFlippers(subRealDt);
+            this.stepBallsPhysics(subPhysDt, gravity);
+          }
+
+          // 記錄動態拖尾並檢查掉球
+          this.oneWayGate.openAmount *= 0.9;
+          for (let i = this.balls.length - 1; i >= 0; i--) {
+            const b = this.balls[i];
+            b.trail.push({ x: b.x, y: b.y, r: b.radius });
+            if (b.trail.length > 14) b.trail.shift();
+
+            // 檢查左側死穴 Kickback 雷射救球器 (x < 56, y > 815)
+            if (b.x < 56 && b.y > 810 && b.vy > 0 && this.kickbackReady && !this.isTilted) {
+              this.kickbackReady = false;
+              this.kickbackFlash = 1.0;
+              b.y = 795;
+              b.vy = -1180;
+              b.vx = 180;
+              audio.playKickbackLaser();
+              this.addScreenShake(14);
+              this.spawnParticles(40, 810, "#39ff14", 24, 340);
+              this.addScore(5000, 75, 760, "⚡ LASER KICKBACK SAVE! ⚡", "#39ff14");
+              this.setMission("⚡ 左側雷射救球器自動發射！擊倒左側 3 個能量靶可重新充能！");
+              continue;
+            }
+
+            // 檢查底部死穴雷射護盾 (Ball Saver)
+            if (b.y > 852 && b.vy > 0 && this.chaos.ballSaverTimer > 0) {
+              b.y = 848;
+              b.vy = -960;
+              b.vx = (Math.random() - 0.5) * 320;
+              audio.playKickbackLaser();
+              this.spawnParticles(b.x, 855, "#00f0ff", 16, 260);
+              this.floatingTexts.push({ x: b.x, y: 820, text: "SHIELD SAVE!", life: 0.9, color: "#00f0ff" });
+              continue;
+            }
+
+            // 真正掉入死穴
+            if (b.y > TABLE_H + 25) {
+              this.balls.splice(i, 1);
+              if (this.balls.length === 0) {
+                this.handleAllBallsDrained();
+                break;
+              } else {
+                audio.playDrain();
+                this.setMission(`💥 損失 1 顆彈珠！場上還有 ${this.balls.length} 顆彈珠正在激戰！`);
+              }
+            }
+          }
+
+          this.updateUI();
+        }
+
+        updateShake(dt) {
+          if (this.shakeIntensity > 0.2) {
+            this.shakeOffset.x = (Math.random() - 0.5) * this.shakeIntensity;
+            this.shakeOffset.y = (Math.random() - 0.5) * this.shakeIntensity;
+            this.shakeIntensity *= Math.pow(0.05, dt);
+          } else {
+            this.shakeIntensity = 0;
+            this.shakeOffset.x = 0;
+            this.shakeOffset.y = 0;
+          }
+        }
+
+        updateChaosTimers(dt) {
+          const prevAntiGrav = this.chaos.antiGravityTimer > 0;
+          if (this.chaos.antiGravityTimer > 0) this.chaos.antiGravityTimer = Math.max(0, this.chaos.antiGravityTimer - dt);
+          if (prevAntiGrav && this.chaos.antiGravityTimer === 0) {
+            audio.playGravityShift(false);
+            this.setMission("🌌 重力場已恢復正常！");
+          }
+
+          if (this.chaos.giantBallTimer > 0) this.chaos.giantBallTimer = Math.max(0, this.chaos.giantBallTimer - dt);
+          if (this.chaos.miniSpeedTimer > 0) this.chaos.miniSpeedTimer = Math.max(0, this.chaos.miniSpeedTimer - dt);
+          if (this.chaos.doubleFlipperTimer > 0) this.chaos.doubleFlipperTimer = Math.max(0, this.chaos.doubleFlipperTimer - dt);
+          if (this.chaos.ballSaverTimer > 0) this.chaos.ballSaverTimer = Math.max(0, this.chaos.ballSaverTimer - dt);
+
+          // 動態切換頁面霓虹氣氛主題
+          const body = document.body;
+          body.classList.remove("mode-multiball", "mode-antigrav", "mode-bullettime", "mode-giant");
+          if (this.isBulletTimeActive) body.classList.add("mode-bullettime");
+          else if (this.balls.length > 1) body.classList.add("mode-multiball");
+          else if (this.chaos.antiGravityTimer > 0) body.classList.add("mode-antigrav");
+          else if (this.chaos.giantBallTimer > 0) body.classList.add("mode-giant");
+        }
+
+        updateUfo(dt) {
+          if (!this.ufo.active) {
+            this.ufo.respawnTimer -= dt;
+            if (this.ufo.respawnTimer <= 0) {
+              this.ufo.active = true;
+              this.ufo.hp = 2;
+              this.ufo.x = 120 + Math.random() * 230;
+            }
+            return;
+          }
+          if (this.ufo.hitFlash > 0) this.ufo.hitFlash = Math.max(0, this.ufo.hitFlash - dt * 5);
+          this.ufo.x += this.ufo.vx * dt;
+          if (this.ufo.x < 105) {
+            this.ufo.x = 105;
+            this.ufo.vx = Math.abs(this.ufo.vx);
+          } else if (this.ufo.x > 365) {
+            this.ufo.x = 365;
+            this.ufo.vx = -Math.abs(this.ufo.vx);
+          }
+        }
+
+        updateFlippers(dt) {
+          const flipperSpeed = 27; // 俐落高速反應
+          const activeFlippers =
+            this.chaos.doubleFlipperTimer > 0 ? [...this.mainFlippers, ...this.midFlippers] : this.mainFlippers;
+
+          for (const f of activeFlippers) {
+            const targetAngle =
+              !this.isTilted && ((f.side === "left" && this.keys.left) || (f.side === "right" && this.keys.right))
+                ? f.activeAngle
+                : f.restAngle;
+
+            const diff = targetAngle - f.angle;
+            if (Math.abs(diff) > 0.001) {
+              const stepAng = Math.sign(diff) * Math.min(Math.abs(diff), flipperSpeed * dt);
+              f.angularVel = stepAng / dt;
+              f.angle += stepAng;
+            } else {
+              f.angularVel = 0;
+            }
+          }
+        }
+
+        stepBallsPhysics(dt, gravity) {
+          const activeFlippers =
+            this.chaos.doubleFlipperTimer > 0 ? [...this.mainFlippers, ...this.midFlippers] : this.mainFlippers;
+
+          // A. 彈珠與彈珠之間的彈性碰撞 (Multiball 互撞狂歡！)
+          for (let i = 0; i < this.balls.length; i++) {
+            for (let j = i + 1; j < this.balls.length; j++) {
+              const b1 = this.balls[i];
+              const b2 = this.balls[j];
+              if (b1.inRoulette || b2.inRoulette) continue;
+
+              const dx = b2.x - b1.x;
+              const dy = b2.y - b1.y;
+              const dist = Math.hypot(dx, dy);
+              const minDist = b1.radius + b2.radius;
+
+              if (dist < minDist && dist > 1e-5) {
+                const nx = dx / dist;
+                const ny = dy / dist;
+                const overlap = (minDist - dist) * 0.5;
+                b1.x -= nx * overlap;
+                b1.y -= ny * overlap;
+                b2.x += nx * overlap;
+                b2.y += ny * overlap;
+
+                const rvx = b2.vx - b1.vx;
+                const rvy = b2.vy - b1.vy;
+                const velAlongNormal = rvx * nx + rvy * ny;
+
+                if (velAlongNormal < 0) {
+                  const e = 0.92;
+                  const imp = -(1 + e) * velAlongNormal * 0.5;
+                  b1.vx -= imp * nx;
+                  b1.vy -= imp * ny;
+                  b2.vx += imp * nx;
+                  b2.vy += imp * ny;
+
+                  if (Math.abs(velAlongNormal) > 180) {
+                    audio.playBallCollide();
+                    this.addScore(500, (b1.x + b2.x) * 0.5, (b1.y + b2.y) * 0.5, "CLASH +500", "#ff2a55");
+                  }
+                }
+              }
+            }
+          }
+
+          // B. 逐顆彈珠推進與機關碰撞
+          for (const b of this.balls) {
+            if (b.inRoulette) continue;
+
+            // 發射通道內不受反重力影響，確保隨時可發射
+            const isInPlungerLane = b.x > 448 && b.y > 200;
+            const localGravity = isInPlungerLane ? 760 : gravity;
+
+            b.vy += localGravity * dt;
+            b.vx *= 1 - 0.045 * dt;
+            b.vy *= 1 - 0.045 * dt;
+
+            const maxSpd = 1850;
+            const curSpd = Math.hypot(b.vx, b.vy);
+            if (curSpd > maxSpd) {
+              const s = maxSpd / curSpd;
+              b.vx *= s;
+              b.vy *= s;
+            }
+
+            b.x += b.vx * dt;
+            b.y += b.vy * dt;
+
+            // 發射器底部支撐
+            if (b.x > 448 && b.x < 485) {
+              const floorY = 780 + this.plunger.pullAmount * 0.72;
+              if (b.y + b.radius > floorY && b.vy >= 0) {
+                b.y = floorY - b.radius;
+                b.vy = -b.vy * 0.35;
+              }
+            }
+
+            // 發射通道單向閘門
+            if (b.x > 420 && b.x < 455 && Math.abs(b.y - 185) < b.radius + 6) {
+              if (b.vy < 0) {
+                this.oneWayGate.openAmount = 1.0;
+              } else if (b.vy > 0 && this.oneWayGate.openAmount < 0.25) {
+                b.y = 185 - b.radius - 6;
+                b.vy = -Math.abs(b.vy) * 0.55;
+                b.vx -= 160;
+              }
+            }
+
+            // 靜態牆壁與 Slingshots
+            for (const w of this.walls) {
+              const closest = Vec2.closestPointOnSegment(b, w.a, w.b);
+              const delta = Vec2.sub(b, closest);
+              const dist = Vec2.len(delta);
+
+              if (dist < b.radius && dist > 1e-6) {
+                const normal = Vec2.mul(delta, 1 / dist);
+                const overlap = b.radius - dist;
+                b.x += normal.x * overlap;
+                b.y += normal.y * overlap;
+
+                const vn = b.vx * normal.x + b.vy * normal.y;
+                if (vn < 0) {
+                  const restitution = w.rest || 0.62;
+                  b.vx -= (1 + restitution) * vn * normal.x;
+                  b.vy -= (1 + restitution) * vn * normal.y;
+
+                  if (w.isSlingshot && !this.isTilted) {
+                    b.vx += normal.x * 310;
+                    b.vy += normal.y * 310;
+                    w.hitAnim = 1.0;
+                    this.registerCombo();
+                    audio.playSlingshot();
+                    this.addScreenShake(4);
+                    this.addScore(600, closest.x, closest.y);
+                    this.spawnParticles(closest.x, closest.y, "#f472b6", 9, 200);
+                  }
+                }
+              }
+            }
+
+            // 發光圓形保險桿 (Attack Bumpers)
+            for (const bmp of this.bumpers) {
+              const delta = Vec2.sub(b, bmp);
+              const dist = Vec2.len(delta);
+              const minDist = b.radius + bmp.radius;
+
+              if (dist < minDist && dist > 1e-6) {
+                const normal = Vec2.mul(delta, 1 / dist);
+                b.x = bmp.x + normal.x * (minDist + 0.5);
+                b.y = bmp.y + normal.y * (minDist + 0.5);
+
+                const kickSpeed = this.isTilted ? 320 : 650 + bmp.level * 40;
+                b.vx = normal.x * kickSpeed;
+                b.vy = normal.y * kickSpeed;
+
+                bmp.hitAnim = 1.0;
+                if (!this.isTilted) {
+                  bmp.level = Math.min(5, bmp.level + 1);
+                  this.registerCombo();
+                  audio.playBumper(bmp.id);
+                  this.addScreenShake(5);
+                  this.addScore(1200 * bmp.level, bmp.x, bmp.y - 16);
+                  this.spawnParticles(bmp.x + normal.x * bmp.radius, bmp.y + normal.y * bmp.radius, bmp.color, 12, 240);
+                }
+              }
+            }
+
+            // 左右雙擋板 (包含中場雙倍擋板)
+            for (const f of activeFlippers) {
+              const tip = {
+                x: f.pivot.x + Math.cos(f.angle) * f.length,
+                y: f.pivot.y + Math.sin(f.angle) * f.length
+              };
+              const closest = Vec2.closestPointOnSegment(b, f.pivot, tip);
+              const delta = Vec2.sub(b, closest);
+              const dist = Vec2.len(delta);
+              const minDist = b.radius + f.radius;
+
+              if (dist < minDist && dist > 1e-6) {
+                const normal = Vec2.mul(delta, 1 / dist);
+                b.x += normal.x * (minDist - dist);
+                b.y += normal.y * (minDist - dist);
+
+                const rVec = Vec2.sub(closest, f.pivot);
+                const surfaceVel = {
+                  x: -f.angularVel * rVec.y,
+                  y: f.angularVel * rVec.x
+                };
+
+                const relVel = Vec2.sub({ x: b.vx, y: b.vy }, surfaceVel);
+                const vn = Vec2.dot(relVel, normal);
+
+                if (vn < 0) {
+                  const restitution = 0.62;
+                  b.vx -= (1 + restitution) * vn * normal.x;
+                  b.vy -= (1 + restitution) * vn * normal.y;
+
+                  const isSwingingUp =
+                    (f.side === "left" && f.angularVel < -1) || (f.side === "right" && f.angularVel > 1);
+                  if (isSwingingUp) {
+                    // 依擊球點靠近尖端程度給予額外爆發力與角度偏轉
+                    const hitRatio = Math.min(1, Vec2.len(rVec) / f.length);
+                    b.vx += normal.x * (170 + hitRatio * 120);
+                    b.vy += normal.y * (170 + hitRatio * 120) - 110;
+                  }
+                }
+              }
+            }
+
+            // 頂部 Rollover 倍率通道
+            if (!this.isTilted) {
+              for (const ro of this.rollovers) {
+                if (Math.hypot(b.x - ro.x, b.y - ro.y) < b.radius + ro.radius && !ro.lit) {
+                  ro.lit = true;
+                  this.registerCombo();
+                  const litCount = this.rollovers.filter((r) => r.lit).length;
+                  audio.playRollover(litCount);
+                  this.addScore(1500, ro.x, ro.y - 12);
+                  this.spawnParticles(ro.x, ro.y, "#38bdf8", 8, 150);
+
+                  if (litCount === 3) {
+                    this.multiplier = Math.min(8, this.multiplier + 1);
+                    audio.playLevelUp();
+                    this.addScore(6000, 235, 130, `MULTIPLIER ${this.multiplier}x!`, "#fbbf24");
+                    this.setMission(`✨ 頂部 A-B-C 全亮！得分倍率狂飆至 ${this.multiplier}x！`);
+                    setTimeout(() => this.rollovers.forEach((r) => (r.lit = false)), 600);
+                  }
+                }
+              }
+            }
+
+            // 左側 3 個能量目標靶 (Drop Targets - 擊倒全數可充能左側雷射救球器)
+            if (!this.isTilted) {
+              for (const t of this.dropTargets) {
+                if (t.down) continue;
+                const delta = Vec2.sub(b, t);
+                const dist = Vec2.len(delta);
+                if (dist < b.radius + t.radius && dist > 1e-6) {
+                  const normal = Vec2.mul(delta, 1 / dist);
+                  b.x = t.x + normal.x * (b.radius + t.radius + 1);
+                  b.y = t.y + normal.y * (b.radius + t.radius + 1);
+                  b.vx = normal.x * Math.max(360, Math.hypot(b.vx, b.vy) * 0.92);
+                  b.vy = normal.y * Math.max(360, Math.hypot(b.vx, b.vy) * 0.92);
+
+                  t.down = true;
+                  this.registerCombo();
+                  const remaining = this.dropTargets.filter((item) => !item.down).length;
+                  audio.playTargetHit(remaining);
+                  this.addScore(2500, t.x + 25, t.y);
+                  this.spawnParticles(t.x, t.y, "#34d399", 10, 190);
+
+                  if (remaining === 0) {
+                    audio.playLevelUp();
+                    this.kickbackReady = true;
+                    this.addScore(15000, 150, 390, "⚡ KICKBACK CHARGED +15K! ⚡", "#39ff14");
+                    this.setMission("🔋 左側 3 靶全破！左側「雷射救球器」已重新充能就緒！");
+                    setTimeout(() => this.dropTargets.forEach((item) => (item.down = false)), 1200);
+                  }
+                }
+              }
+            }
+
+            // 左上方 MULTIBALL LOCK 鎖定槽
+            if (!this.isTilted && this.lockHole.cooldown <= 0 && this.balls.length === 1) {
+              const dLock = Math.hypot(b.x - this.lockHole.x, b.y - this.lockHole.y);
+              if (dLock < b.radius + this.lockHole.radius * 0.8) {
+                this.lockHole.cooldown = 2.0;
+                this.lockedBalls++;
+                this.registerCombo();
+                this.spawnParticles(this.lockHole.x, this.lockHole.y, "#ff2a55", 18, 250);
+
+                if (this.lockedBalls >= 3) {
+                  this.lockedBalls = 0;
+                  this.activateMultiball();
+                } else {
+                  audio.playLevelUp();
+                  b.vx = 280;
+                  b.vy = 220;
+                  this.addScore(5000, this.lockHole.x + 20, this.lockHole.y, `LOCK ${this.lockedBalls}/3!`, "#ff2a55");
+                  this.setMission(`🔒 能量球已鎖定 (${this.lockedBalls}/3)！集滿 3 顆啟動 3 球大亂鬥！`);
+                }
+              }
+            }
+
+            // 右側 CHAOS ROULETTE 瘋狂賭場黑洞轉盤
+            if (!this.isTilted && !this.rouletteWheel.spinning && this.rouletteWheel.cooldown <= 0) {
+              const dRoul = Math.hypot(b.x - this.rouletteWheel.x, b.y - this.rouletteWheel.y);
+              if (dRoul < b.radius + this.rouletteWheel.radius * 0.75) {
+                this.rouletteWheel.spinning = true;
+                this.rouletteWheel.spinTimer = 1.4;
+                this.rouletteWheel.lastTick = -1;
+                this.rouletteWheel.capturedBall = b;
+                b.inRoulette = true;
+                b.vx = 0;
+                b.vy = 0;
+                this.setMission("🎰 進入混沌輪盤！正在高速抽取瘋狂場地效果...");
+              }
+            }
+
+            // 中央重力異常反應爐 (Reactor Core)
+            if (!this.isTilted) {
+              const dReac = Math.hypot(b.x - this.reactor.x, b.y - this.reactor.y);
+              const minReac = b.radius + this.reactor.radius;
+              if (dReac < minReac && dReac > 1e-5) {
+                const nx = (b.x - this.reactor.x) / dReac;
+                const ny = (b.y - this.reactor.y) / dReac;
+                b.x = this.reactor.x + nx * (minReac + 1);
+                b.y = this.reactor.y + ny * (minReac + 1);
+                b.vx = nx * 620;
+                b.vy = ny * 620;
+
+                this.reactor.charge++;
+                this.registerCombo();
+                this.spawnParticles(this.reactor.x, this.reactor.y, "#c084fc", 14, 240);
+
+                if (this.reactor.charge >= 3) {
+                  this.reactor.charge = 0;
+                  this.chaos.antiGravityTimer = 10;
+                  audio.playGravityShift(true);
+                  this.addScreenShake(14);
+                  this.addScore(10000, this.reactor.x, this.reactor.y - 20, "🌌 ANTI-GRAVITY STORM! 🌌", "#c084fc");
+                  this.setMission("🌌 重力反應爐過載！反重力風暴啟動 10 秒，彈珠向上飄浮！");
+                } else {
+                  audio.playBumper(2);
+                  this.addScore(2000, this.reactor.x, this.reactor.y - 16, `REACTOR ${this.reactor.charge}/3`, "#c084fc");
+                }
+              }
+            }
+
+            // 頂部移動式 UFO 飛碟碰撞
+            if (this.ufo.active && !this.isTilted) {
+              const dUfo = Math.hypot(b.x - this.ufo.x, b.y - this.ufo.y);
+              const minUfo = b.radius + this.ufo.radius;
+              if (dUfo < minUfo && dUfo > 1e-5) {
+                const nx = (b.x - this.ufo.x) / dUfo;
+                const ny = (b.y - this.ufo.y) / dUfo;
+                b.x = this.ufo.x + nx * (minUfo + 1);
+                b.y = this.ufo.y + ny * (minUfo + 1);
+                b.vx = nx * 680;
+                b.vy = ny * 680;
+
+                this.ufo.hp--;
+                this.ufo.hitFlash = 1.0;
+                this.registerCombo();
+                this.triggerHitstop(0.03);
+
+                if (this.ufo.hp <= 0) {
+                  this.ufo.active = false;
+                  this.ufo.respawnTimer = 14;
+                  audio.playUfoExplosion();
+                  this.addScreenShake(16);
+                  this.spawnParticles(this.ufo.x, this.ufo.y, "#fbbf24", 28, 340);
+                  this.addScore(20000, this.ufo.x, this.ufo.y, "🛸 UFO DESTROYED +20,000! 🛸", "#fbbf24");
+                  this.setMission("🛸 擊落外星 UFO 飛碟！獲得 20,000 賞金與連擊加成！");
+                } else {
+                  audio.playBumper(1);
+                  this.addScore(3000, this.ufo.x, this.ufo.y - 14, "UFO ARMOR HIT!", "#38bdf8");
+                }
+              }
+            }
+          }
+        }
+
+        registerCombo() {
+          this.comboCount++;
+          this.comboTimer = 3.5;
+        }
+
+        handleAllBallsDrained() {
+          audio.playDrain();
+          this.ballsLeft--;
+          this.multiplier = 1;
+          this.comboCount = 0;
+          this.chaos.antiGravityTimer = 0;
+          this.chaos.giantBallTimer = 0;
+          this.chaos.doubleFlipperTimer = 0;
+          this.rollovers.forEach((r) => (r.lit = false));
+
+          if (this.ballsLeft > 0) {
+            this.chaos.ballSaverTimer = 8; // 新球登場給予 8 秒基礎護盾
+            this.resetSingleBallToPlunger();
+            this.setMission(`💀 彈珠墜入死穴！剩餘 ${this.ballsLeft} 顆彈珠，已啟動 8 秒發球保護！`);
+            this.updateUI();
+          } else {
+            this.state = "GAMEOVER";
+            audio.playGameOver();
+            const updatedLB = saveHighScore(this.score);
+            this.highScore = updatedLB[0].score;
+            this.updateUI();
+            this.showGameOverModal(updatedLB);
+          }
+        }
+
+        getCurrentRank() {
+          let current = RANKS[0];
+          let next = RANKS[1];
+          for (let i = 0; i < RANKS.length; i++) {
+            if (this.score >= RANKS[i].minScore) {
+              current = RANKS[i];
+              next = RANKS[i + 1] || null;
+            }
+          }
+          let progress = 100;
+          if (next) {
+            progress = Math.min(
+              100,
+              Math.max(5, ((this.score - current.minScore) / (next.minScore - current.minScore)) * 100)
+            );
+          }
+          return { current, progress };
+        }
+
+        updateUI() {
+          const scoreStr = Math.floor(this.score).toLocaleString();
+          const highStr = Math.floor(this.highScore).toLocaleString();
+          const rankInfo = this.getCurrentRank();
+
+          const deskScore = document.getElementById("desk-score");
+          if (deskScore) deskScore.textContent = scoreStr;
+
+          const deskHigh = document.getElementById("desk-highscore");
+          if (deskHigh) deskHigh.textContent = highStr;
+
+          const deskMult = document.getElementById("desk-mult");
+          if (deskMult) {
+            deskMult.textContent = this.comboCount > 1 ? `${this.multiplier}x (${this.comboCount}連擊)` : `${this.multiplier}x`;
+          }
+
+          const deskRankBadge = document.getElementById("desk-rank-badge");
+          if (deskRankBadge) deskRankBadge.textContent = rankInfo.current.name.split(" ")[0];
+
+          const deskRankBar = document.getElementById("desk-rank-bar");
+          if (deskRankBar) deskRankBar.style.width = `${rankInfo.progress}%`;
+
+          const deskBtBar = document.getElementById("desk-bt-bar");
+          const deskBtPct = document.getElementById("desk-bt-pct");
+          if (deskBtBar) deskBtBar.style.width = `${Math.round(this.bulletTimeEnergy)}%`;
+          if (deskBtPct) deskBtPct.textContent = `${Math.round(this.bulletTimeEnergy)}%`;
+
+          const deskMission = document.getElementById("desk-mission-text");
+          if (deskMission) deskMission.textContent = this.missionMessage;
+
+          const deskBalls = document.getElementById("desk-balls");
+          if (deskBalls) {
+            let pipsHtml = "";
+            for (let i = 0; i < Math.max(3, this.ballsLeft); i++) {
+              pipsHtml += `<div class="ball-pip ${i < this.ballsLeft ? "active" : ""}"></div>`;
+            }
+            deskBalls.innerHTML = pipsHtml;
+          }
+
+          // 更新瘋狂狀態標籤
+          const tagsEl = document.getElementById("desk-chaos-tags");
+          if (tagsEl) {
+            const tags = [];
+            if (this.balls.length > 1) tags.push(`<span class="chaos-tag" style="border-color:#ff2a55;color:#ff2a55;">🔥 ${this.balls.length}球大亂鬥</span>`);
+            if (this.chaos.giantBallTimer > 0) tags.push(`<span class="chaos-tag" style="border-color:#fbbf24;color:#fbbf24;">🦖 巨無霸 ${Math.ceil(this.chaos.giantBallTimer)}s</span>`);
+            if (this.chaos.doubleFlipperTimer > 0) tags.push(`<span class="chaos-tag">⚔️ 雙倍擋板 ${Math.ceil(this.chaos.doubleFlipperTimer)}s</span>`);
+            if (this.chaos.antiGravityTimer > 0) tags.push(`<span class="chaos-tag" style="border-color:#c084fc;color:#c084fc;">🌌 反重力 ${Math.ceil(this.chaos.antiGravityTimer)}s</span>`);
+            if (this.chaos.ballSaverTimer > 0) tags.push(`<span class="chaos-tag" style="border-color:#39ff14;color:#39ff14;">🛡️ 護盾 ${Math.ceil(this.chaos.ballSaverTimer)}s</span>`);
+            if (this.kickbackReady) tags.push(`<span class="chaos-tag" style="border-color:#34d399;color:#34d399;">⚡ 左救球器就緒</span>`);
+            tagsEl.innerHTML = tags.length > 0 ? tags.join("") : `<span style="font-size:10px;color:#64748b;">LOCK鎖定: ${this.lockedBalls}/3 顆</span>`;
+          }
+
+          // 手機版 HUD
+          const mobScore = document.getElementById("mob-score");
+          if (mobScore) mobScore.textContent = scoreStr;
+
+          const mobBallsMult = document.getElementById("mob-balls-mult");
+          if (mobBallsMult) mobBallsMult.textContent = `${this.ballsLeft}● ${this.multiplier}x`;
+
+          const mobTicker = document.getElementById("mobile-ticker");
+          if (mobTicker) mobTicker.textContent = this.missionMessage;
+        }
+
+        renderLeaderboard(customList = null) {
+          const list = customList || loadHighScores();
+          const container = document.getElementById("lb-entries");
+          if (!container) return;
+          container.innerHTML = list
+            .map(
+              (item, idx) => `
+              <div class="lb-row ${item.isCurrent ? "highlight" : ""}">
+                <span>#${idx + 1} ${item.name}</span>
+                <span>${Number(item.score).toLocaleString()}</span>
+              </div>
+            `
+            )
+            .join("");
+        }
+
+        showGameOverModal(leaderboard) {
+          const modal = document.getElementById("overlay-modal");
+          document.getElementById("modal-win-title").textContent = "MISSION COMPLETE - GAME OVER";
+          document.getElementById("modal-heading").textContent = "任務結束";
+          document.getElementById("modal-sub").textContent = "您的太空混沌戰鬥紀錄已儲存至本地排行榜";
+
+          const scoreBox = document.getElementById("final-score-container");
+          scoreBox.style.display = "block";
+          document.getElementById("modal-final-score").textContent = Math.floor(this.score).toLocaleString();
+          document.getElementById("modal-rank-achieved").textContent = `最終軍階：${this.getCurrentRank().current.name}`;
+
+          this.renderLeaderboard(leaderboard);
+          document.getElementById("btn-start-game").textContent = "🔄 再戰一局 (PLAY AGAIN)";
+          modal.classList.remove("hidden");
+        }
+
+        /* ========================================================================
+           8. 2.5D 立體透視渲染引擎 (Canvas Rendering)
+           ======================================================================== */
+        render(timeSec) {
+          const ctx = this.ctx;
+          ctx.save();
+          ctx.scale(this.dpr, this.dpr);
+          ctx.clearRect(0, 0, this.viewW, this.viewH);
+
+          // 子彈時間開啟時加入駭客綠微光濾鏡
+          if (this.isBulletTimeActive) {
+            ctx.fillStyle = "rgba(16, 185, 129, 0.08)";
+            ctx.fillRect(0, 0, this.viewW, this.viewH);
+          }
+
+          ctx.translate(this.offsetX + this.shakeOffset.x, this.offsetY + this.shakeOffset.y);
+          ctx.scale(this.renderScale, this.renderScale);
+
+          // A. 繪製 2.5D 機台外殼與動態瘋狂模式背景
+          this.drawTableCabinet(ctx, timeSec);
+
+          // B. 繪製地面發光機關 (Rollovers、LOCK槽、混沌轉盤、反應爐、護盾雷射)
+          this.drawFloorGadgets(ctx, timeSec);
+
+          // C. 繪製牆壁與 Slingshot
+          this.drawWallsAndSlingshots(ctx);
+
+          // D. 繪製左側能量靶與雷射救球器
+          this.drawDropTargetsAndKickback(ctx);
+
+          // E. 繪製發射器與單向閘門
+          this.drawPlungerAndGate(ctx);
+
+          // F. 繪製 3 個立體保險桿與移動式 UFO 飛碟
+          this.drawBumpers(ctx);
+          this.drawUfo(ctx, timeSec);
+
+          // G. 繪製主擋板 (以及雙倍擋板模式下的中場輔助擋板)
+          this.drawFlippers(ctx);
+
+          // H. 繪製所有場上彈珠 (支援 Multiball 與巨無霸球)
+          this.drawAllPinballs(ctx);
+
+          // I. 繪製粒子火花與浮動得分提示
+          this.drawEffects(ctx);
+
+          // J. TILT 紅色警報
+          if (this.isTilted) {
+            ctx.save();
+            ctx.fillStyle = "rgba(220, 38, 38, 0.18)";
+            ctx.fillRect(20, 30, TABLE_W - 40, TABLE_H - 50);
+            ctx.font = "900 44px 'Courier New', monospace";
+            ctx.fillStyle = "#ff2a55";
+            ctx.textAlign = "center";
+            ctx.shadowColor = "#ff2a55";
+            ctx.shadowBlur = 18;
+            ctx.fillText("T I L T !", TABLE_W * 0.5, TABLE_H * 0.52);
+            ctx.restore();
+          }
+
+          ctx.restore();
+        }
+
+        drawTableCabinet(ctx, timeSec) {
+          const tl = project25D(16, 25);
+          const tr = project25D(494, 25);
+          const br = project25D(494, 860);
+          const bl = project25D(16, 860);
+
+          // 3D 立體底座厚度
+          ctx.beginPath();
+          ctx.moveTo(bl.x, bl.y);
+          ctx.lineTo(br.x, br.y);
+          ctx.lineTo(br.x + 6, br.y + 28);
+          ctx.lineTo(bl.x - 6, bl.y + 28);
+          ctx.closePath();
+          ctx.fillStyle = "#0f172a";
+          ctx.fill();
+
+          // 主遊戲區梯形背景 (隨瘋狂模式變換色調)
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(tl.x, tl.y);
+          ctx.lineTo(tr.x, tr.y);
+          ctx.lineTo(br.x, br.y);
+          ctx.lineTo(bl.x, bl.y);
+          ctx.closePath();
+
+          const spaceGrad = ctx.createRadialGradient(TABLE_W * 0.5, TABLE_H * 0.38, 30, TABLE_W * 0.5, TABLE_H * 0.5, 520);
+          if (this.balls.length > 1) {
+            spaceGrad.addColorStop(0, "#3b0d22");
+            spaceGrad.addColorStop(0.5, "#19091a");
+            spaceGrad.addColorStop(1, "#07060f");
+          } else if (this.chaos.antiGravityTimer > 0) {
+            spaceGrad.addColorStop(0, "#2e1065");
+            spaceGrad.addColorStop(0.5, "#13092b");
+            spaceGrad.addColorStop(1, "#060612");
+          } else {
+            spaceGrad.addColorStop(0, "#191c3a");
+            spaceGrad.addColorStop(0.45, "#0d1126");
+            spaceGrad.addColorStop(1, "#060812");
+          }
+          ctx.fillStyle = spaceGrad;
+          ctx.fill();
+          ctx.clip();
+
+          // 群星閃爍 (反重力時星星向上飄移！)
+          for (const s of this.stars) {
+            const driftY = this.chaos.antiGravityTimer > 0 ? (s.y - timeSec * 90) % TABLE_H : s.y;
+            const py = driftY < 0 ? driftY + TABLE_H : driftY;
+            const p = project25D(s.x, py);
+            const alpha = s.alpha * (0.65 + 0.35 * Math.sin(timeSec * s.twinkleSpeed + s.x));
+            ctx.fillStyle = `rgba(224, 242, 254, ${alpha.toFixed(2)})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, s.size * p.scale, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // 底部中央死穴警告區標示 (DANGER DRAIN)
+          const drainP = project25D(235, 835);
+          ctx.font = "bold 11px monospace";
+          ctx.fillStyle = "rgba(255, 42, 85, 0.35)";
+          ctx.textAlign = "center";
+          ctx.fillText("▼ CENTER DRAIN ▼", drainP.x, drainP.y);
+
+          ctx.restore();
+
+          // 外框發光金屬線
+          ctx.beginPath();
+          ctx.moveTo(tl.x, tl.y);
+          ctx.lineTo(tr.x, tr.y);
+          ctx.lineTo(br.x, br.y);
+          ctx.lineTo(bl.x, bl.y);
+          ctx.closePath();
+          ctx.lineWidth = 5;
+          ctx.strokeStyle = this.balls.length > 1 ? "#ff2a55" : this.chaos.antiGravityTimer > 0 ? "#c084fc" : "#475569";
+          ctx.stroke();
+        }
+
+        drawFloorGadgets(ctx, timeSec) {
+          // 1. 頂部 3 個 Rollover 燈號
+          for (const ro of this.rollovers) {
+            const p = project25D(ro.x, ro.y);
+            const r = ro.radius * p.scale;
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = ro.lit ? "#38bdf8" : "rgba(15, 23, 42, 0.85)";
+            if (ro.lit) {
+              ctx.shadowColor = "#00f0ff";
+              ctx.shadowBlur = 16;
+            }
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = ro.lit ? "#e0f2fe" : "#334155";
+            ctx.stroke();
+            ctx.font = `bold ${Math.round(11 * p.scale)}px monospace`;
+            ctx.fillStyle = ro.lit ? "#0f172a" : "#64748b";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(ro.label, p.x, p.y + 1);
+            ctx.restore();
+          }
+
+          // 2. 左上方 MULTIBALL LOCK 鎖定槽
+          const lp = project25D(this.lockHole.x, this.lockHole.y);
+          const lr = this.lockHole.radius * lp.scale;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(lp.x, lp.y, lr, 0, Math.PI * 2);
+          ctx.fillStyle = "#1f0812";
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "#ff2a55";
+          ctx.shadowColor = "#ff2a55";
+          ctx.shadowBlur = 12;
+          ctx.stroke();
+          ctx.font = `bold ${Math.round(9 * lp.scale)}px monospace`;
+          ctx.fillStyle = "#fda4af";
+          ctx.textAlign = "center";
+          ctx.fillText(`LOCK ${this.lockedBalls}/3`, lp.x, lp.y + lr + 11);
+          ctx.restore();
+
+          // 3. 右側 CHAOS ROULETTE 混沌轉盤
+          const rp = project25D(this.rouletteWheel.x, this.rouletteWheel.y);
+          const rr = this.rouletteWheel.radius * rp.scale;
+          ctx.save();
+          ctx.translate(rp.x, rp.y);
+          ctx.rotate(this.rouletteWheel.rotation);
+          const segColors = ["#fbbf24", "#f472b6", "#38bdf8", "#a855f7", "#34d399", "#ef4444"];
+          for (let i = 0; i < 6; i++) {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, rr, (i * Math.PI) / 3, ((i + 1) * Math.PI) / 3);
+            ctx.closePath();
+            ctx.fillStyle = segColors[i];
+            ctx.fill();
+          }
+          ctx.beginPath();
+          ctx.arc(0, 0, rr * 0.35, 0, Math.PI * 2);
+          ctx.fillStyle = "#090d16";
+          ctx.fill();
+          ctx.restore();
+
+          ctx.font = `bold ${Math.round(9 * rp.scale)}px monospace`;
+          ctx.fillStyle = "#fde047";
+          ctx.textAlign = "center";
+          ctx.fillText("CHAOS SPIN", rp.x, rp.y + rr + 11);
+
+          // 4. 中央重力反應爐 (Reactor Core)
+          const cp = project25D(this.reactor.x, this.reactor.y);
+          const cr = this.reactor.radius * cp.scale;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cp.x, cp.y, cr, 0, Math.PI * 2);
+          ctx.fillStyle = this.chaos.antiGravityTimer > 0 ? "#a855f7" : "#2e1065";
+          ctx.shadowColor = "#c084fc";
+          ctx.shadowBlur = 14;
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = "#e9d5ff";
+          ctx.stroke();
+          ctx.font = `bold ${Math.round(10 * cp.scale)}px monospace`;
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(`G:${this.reactor.charge}/3`, cp.x, cp.y);
+          ctx.restore();
+
+          // 5. 底部死穴雷射護盾 (Ball Saver Active 時顯示發光雷射線)
+          if (this.chaos.ballSaverTimer > 0) {
+            const s1 = project25D(75, 852);
+            const s2 = project25D(395, 852);
+            ctx.save();
+            ctx.strokeStyle = "#39ff14";
+            ctx.lineWidth = 4;
+            ctx.shadowColor = "#39ff14";
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            ctx.moveTo(s1.x, s1.y);
+            ctx.lineTo(s2.x, s2.y);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+
+        drawWallsAndSlingshots(ctx) {
+          for (const w of this.walls) {
+            const pa = project25D(w.a.x, w.a.y);
+            const pb = project25D(w.b.x, w.b.y);
+            const wallH = 9 * ((pa.scale + pb.scale) * 0.5);
+
+            ctx.beginPath();
+            ctx.moveTo(pa.x, pa.y);
+            ctx.lineTo(pb.x, pb.y);
+            ctx.lineTo(pb.x, pb.y + wallH);
+            ctx.lineTo(pa.x, pa.y + wallH);
+            ctx.closePath();
+            ctx.fillStyle = w.isSlingshot ? "#831843" : "#1e293b";
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(pa.x, pa.y - 2);
+            ctx.lineTo(pb.x, pb.y - 2);
+            ctx.lineCap = "round";
+
+            if (w.isSlingshot) {
+              const flash = w.hitAnim > 0;
+              ctx.lineWidth = (flash ? 6.5 : 4.5) * pa.scale;
+              ctx.strokeStyle = flash ? "#ffffff" : "#f472b6";
+              ctx.shadowColor = "#ec4899";
+              ctx.shadowBlur = flash ? 18 : 8;
+            } else {
+              ctx.lineWidth = 4 * pa.scale;
+              ctx.strokeStyle = "#60a5fa";
+              ctx.shadowColor = "#2563eb";
+              ctx.shadowBlur = 4;
+            }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
+        }
+
+        drawDropTargetsAndKickback(ctx) {
+          // 1. 左側 3 個能量靶
+          for (const t of this.dropTargets) {
+            const p = project25D(t.x, t.y);
+            const r = t.radius * p.scale;
+            ctx.save();
+            if (t.down) {
+              ctx.fillStyle = "rgba(16, 185, 129, 0.2)";
+              ctx.strokeStyle = "#059669";
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, r * 0.85, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+            } else {
+              ctx.fillStyle = "#34d399";
+              ctx.shadowColor = "#10b981";
+              ctx.shadowBlur = 10;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y - 2 * p.scale, r, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = "#ecfdf5";
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
+
+          // 2. 左側死穴雷射救球器 (Kickback)
+          const kp = project25D(40, 815);
+          ctx.save();
+          if (this.kickbackReady || this.kickbackFlash > 0) {
+            ctx.fillStyle = this.kickbackFlash > 0 ? "#ffffff" : "#39ff14";
+            ctx.shadowColor = "#39ff14";
+            ctx.shadowBlur = 14;
+            ctx.beginPath();
+            ctx.arc(kp.x, kp.y, 7 * kp.scale, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.strokeStyle = "#475569";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(kp.x, kp.y, 6 * kp.scale, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        drawPlungerAndGate(ctx) {
+          const pullY = this.plunger.restY + this.plunger.pullAmount * 0.72;
+          const pTop = project25D(this.plunger.x, pullY);
+          const pBot = project25D(this.plunger.x, 845);
+
+          ctx.save();
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 2.5 * pTop.scale;
+          const coils = 7;
+          ctx.beginPath();
+          for (let i = 0; i <= coils; i++) {
+            const t = i / coils;
+            const cy = pTop.y + (pBot.y - pTop.y) * t;
+            const cx = pTop.x + (i % 2 === 0 ? -7 : 7) * pTop.scale;
+            if (i === 0) ctx.moveTo(pTop.x, cy);
+            else ctx.lineTo(cx, cy);
+          }
+          ctx.stroke();
+
+          ctx.fillStyle = this.plunger.isCharging ? "#f472b6" : "#38bdf8";
+          ctx.fillRect(pTop.x - 11 * pTop.scale, pTop.y - 6 * pTop.scale, 22 * pTop.scale, 8 * pTop.scale);
+          ctx.restore();
+
+          const gPivot = project25D(450, 185);
+          const gateAngle = -this.oneWayGate.openAmount * 1.2;
+          const gLen = 22 * gPivot.scale;
+
+          ctx.save();
+          ctx.translate(gPivot.x, gPivot.y);
+          ctx.rotate(gateAngle);
+          ctx.strokeStyle = "#fbbf24";
+          ctx.lineWidth = 3 * gPivot.scale;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(-gLen, 0);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        drawBumpers(ctx) {
+          for (const bmp of this.bumpers) {
+            const p = project25D(bmp.x, bmp.y);
+            const bounceScale = 1 + bmp.hitAnim * 0.24;
+            const r = bmp.radius * p.scale * bounceScale;
+
+            ctx.save();
+            ctx.fillStyle = "#1e293b";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y + 7 * p.scale, r * 0.92, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowColor = bmp.color;
+            ctx.shadowBlur = bmp.hitAnim > 0 ? 28 : 14;
+            ctx.fillStyle = bmp.hitAnim > 0 ? "#ffffff" : bmp.glowColor;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y - 3 * p.scale, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            const capGrad = ctx.createRadialGradient(p.x - r * 0.3, p.y - 3 * p.scale - r * 0.3, r * 0.1, p.x, p.y - 3 * p.scale, r);
+            capGrad.addColorStop(0, "#ffffff");
+            capGrad.addColorStop(0.35, bmp.color);
+            capGrad.addColorStop(1, bmp.glowColor);
+
+            ctx.fillStyle = capGrad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y - 3 * p.scale, r * 0.82, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+            ctx.font = `900 ${Math.round(12 * p.scale)}px monospace`;
+            ctx.fillStyle = "#0f172a";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(`L${bmp.level}`, p.x, p.y - 2 * p.scale);
+            ctx.restore();
+          }
+        }
+
+        drawUfo(ctx, timeSec) {
+          if (!this.ufo.active) return;
+          const p = project25D(this.ufo.x, this.ufo.y);
+          const r = this.ufo.radius * p.scale;
+
+          ctx.save();
+          ctx.translate(p.x, p.y + Math.sin(timeSec * 6) * 2);
+          ctx.shadowColor = this.ufo.hitFlash > 0 ? "#ffffff" : "#39ff14";
+          ctx.shadowBlur = 16;
+
+          // 飛碟圓盤底座
+          ctx.fillStyle = this.ufo.hitFlash > 0 ? "#ffffff" : "#10b981";
+          ctx.beginPath();
+          ctx.ellipse(0, 2 * p.scale, r * 1.35, r * 0.55, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 飛碟透明駕駛艙圓頂
+          ctx.fillStyle = "#bae6fd";
+          ctx.beginPath();
+          ctx.arc(0, -2 * p.scale, r * 0.65, Math.PI, 0);
+          ctx.fill();
+
+          // 呼吸燈點
+          ctx.fillStyle = "#fbbf24";
+          [-0.7, 0, 0.7].forEach((offset) => {
+            ctx.beginPath();
+            ctx.arc(offset * r, 2 * p.scale, 2.2 * p.scale, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.restore();
+        }
+
+        drawFlippers(ctx) {
+          const activeFlippers =
+            this.chaos.doubleFlipperTimer > 0 ? [...this.mainFlippers, ...this.midFlippers] : this.mainFlippers;
+
+          for (const f of activeFlippers) {
+            const tipLogic = {
+              x: f.pivot.x + Math.cos(f.angle) * f.length,
+              y: f.pivot.y + Math.sin(f.angle) * f.length
+            };
+            const p1 = project25D(f.pivot.x, f.pivot.y);
+            const p2 = project25D(tipLogic.x, tipLogic.y);
+            const r1 = f.radius * p1.scale * 1.25;
+            const r2 = f.radius * p2.scale * 0.85;
+
+            ctx.save();
+            ctx.strokeStyle = "#0f172a";
+            ctx.lineWidth = r1 + r2;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y + 6 * p1.scale);
+            ctx.lineTo(p2.x, p2.y + 6 * p2.scale);
+            ctx.stroke();
+
+            const grad = ctx.createLinearGradient(p1.x, p1.y - 10, p2.x, p2.y + 10);
+            if (f.isMid) {
+              grad.addColorStop(0, "#fef08a");
+              grad.addColorStop(0.5, "#f59e0b");
+              grad.addColorStop(1, "#b45309");
+            } else {
+              grad.addColorStop(0, "#f8fafc");
+              grad.addColorStop(0.5, "#38bdf8");
+              grad.addColorStop(1, "#0284c7");
+            }
+
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = (r1 + r2) * 0.92;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y - 2 * p1.scale);
+            ctx.lineTo(p2.x, p2.y - 2 * p2.scale);
+            ctx.stroke();
+
+            ctx.fillStyle = "#1e293b";
+            ctx.beginPath();
+            ctx.arc(p1.x, p1.y - 2 * p1.scale, r1 * 0.42, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+
+        drawAllPinballs(ctx) {
+          for (const b of this.balls) {
+            const p = project25D(b.x, b.y);
+            const r = b.radius * p.scale;
+
+            // 動態光軌尾跡
+            if (b.trail.length > 1 && !b.inRoulette) {
+              for (let i = 0; i < b.trail.length - 1; i++) {
+                const tp = project25D(b.trail[i].x, b.trail[i].y);
+                const ratio = i / b.trail.length;
+                ctx.fillStyle =
+                  this.chaos.giantBallTimer > 0
+                    ? `rgba(251, 191, 36, ${(ratio * 0.28).toFixed(2)})`
+                    : this.balls.length > 1
+                    ? `rgba(255, 42, 85, ${(ratio * 0.28).toFixed(2)})`
+                    : `rgba(56, 189, 248, ${(ratio * 0.25).toFixed(2)})`;
+                ctx.beginPath();
+                ctx.arc(tp.x, tp.y, r * ratio * 0.85, 0, Math.PI * 2);
+                ctx.fill();
+              }
+            }
+
+            // 地面投影陰影
+            ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+            ctx.beginPath();
+            ctx.ellipse(p.x + 3 * p.scale, p.y + 6 * p.scale, r * 1.05, r * 0.85, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3D 立體鋼珠本體
+            const ballGrad = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.35, r * 0.08, p.x, p.y, r);
+            ballGrad.addColorStop(0, "#ffffff");
+            if (this.chaos.giantBallTimer > 0) {
+              ballGrad.addColorStop(0.3, "#fde047");
+              ballGrad.addColorStop(0.75, "#d97706");
+            } else if (b.colorTint === "#ff2a55") {
+              ballGrad.addColorStop(0.3, "#fda4af");
+              ballGrad.addColorStop(0.75, "#e11d48");
+            } else {
+              ballGrad.addColorStop(0.28, "#e2e8f0");
+              ballGrad.addColorStop(0.68, "#64748b");
+            }
+            ballGrad.addColorStop(1, "#0f172a");
+
+            ctx.fillStyle = ballGrad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        drawEffects(ctx) {
+          for (const pt of this.particles) {
+            const p = project25D(pt.x, pt.y);
+            ctx.fillStyle = pt.color;
+            ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, pt.size * p.scale, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+
+          for (const ft of this.floatingTexts) {
+            const p = project25D(ft.x, ft.y);
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, ft.life);
+            ctx.font = `900 ${Math.round(13.5 * p.scale)}px 'Courier New', monospace`;
+            ctx.fillStyle = ft.color;
+            ctx.shadowColor = "#000000";
+            ctx.shadowBlur = 4;
+            ctx.textAlign = "center";
+            ctx.fillText(ft.text, p.x, p.y);
+            ctx.restore();
+          }
+        }
+      }
+
+      /* ==========================================================================
+         9. 應用程式啟動與跨裝置鍵盤/多點觸控綁定
+         ========================================================================== */
+      window.addEventListener("DOMContentLoaded", () => {
+        const canvas = document.getElementById("pinball-canvas");
+        const game = new PinballGame(canvas);
+
+        window.addEventListener("keydown", (e) => {
+          if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space"].includes(e.code)) {
+            e.preventDefault();
+          }
+          if (e.repeat) return;
+
+          audio.init();
+          switch (e.code) {
+            case "KeyZ":
+            case "ArrowLeft":
+              if (!game.keys.left && game.state === "PLAYING" && !game.isTilted) audio.playFlipper();
+              game.keys.left = true;
+              document.getElementById("touch-left")?.classList.add("pressed");
+              break;
+            case "Slash":
+            case "KeyM":
+            case "ArrowRight":
+              if (!game.keys.right && game.state === "PLAYING" && !game.isTilted) audio.playFlipper();
+              game.keys.right = true;
+              document.getElementById("touch-right")?.classList.add("pressed");
+              break;
+            case "Space":
+            case "ArrowDown":
+              game.keys.plunger = true;
+              document.getElementById("touch-plunger")?.classList.add("pressed");
+              break;
+            case "KeyC":
+              game.keys.bulletTime = true;
+              document.getElementById("touch-bullet")?.classList.add("pressed");
+              break;
+            case "KeyX":
+            case "ArrowUp":
+              game.triggerTilt();
+              break;
+          }
+        });
+
+        window.addEventListener("keyup", (e) => {
+          switch (e.code) {
+            case "KeyZ":
+            case "ArrowLeft":
+              game.keys.left = false;
+              document.getElementById("touch-left")?.classList.remove("pressed");
+              break;
+            case "Slash":
+            case "KeyM":
+            case "ArrowRight":
+              game.keys.right = false;
+              document.getElementById("touch-right")?.classList.remove("pressed");
+              break;
+            case "Space":
+            case "ArrowDown":
+              game.keys.plunger = false;
+              document.getElementById("touch-plunger")?.classList.remove("pressed");
+              break;
+            case "KeyC":
+              game.keys.bulletTime = false;
+              document.getElementById("touch-bullet")?.classList.remove("pressed");
+              break;
+          }
+        });
+
+        function bindHoldControl(elementId, onDown, onUp) {
+          const el = document.getElementById(elementId);
+          if (!el) return;
+
+          const handleStart = (e) => {
+            e.preventDefault();
+            audio.init();
+            el.classList.add("pressed");
+            onDown();
+          };
+
+          const handleEnd = (e) => {
+            e.preventDefault();
+            el.classList.remove("pressed");
+            onUp();
+          };
+
+          el.addEventListener("touchstart", handleStart, { passive: false });
+          el.addEventListener("touchend", handleEnd, { passive: false });
+          el.addEventListener("touchcancel", handleEnd, { passive: false });
+          el.addEventListener("mousedown", handleStart);
+          el.addEventListener("mouseup", handleEnd);
+          el.addEventListener("mouseleave", handleEnd);
+        }
+
+        bindHoldControl(
+          "touch-left",
+          () => {
+            if (!game.keys.left && game.state === "PLAYING" && !game.isTilted) audio.playFlipper();
+            game.keys.left = true;
+          },
+          () => {
+            game.keys.left = false;
+          }
+        );
+
+        bindHoldControl(
+          "touch-right",
+          () => {
+            if (!game.keys.right && game.state === "PLAYING" && !game.isTilted) audio.playFlipper();
+            game.keys.right = true;
+          },
+          () => {
+            game.keys.right = false;
+          }
+        );
+
+        bindHoldControl(
+          "touch-plunger",
+          () => {
+            game.keys.plunger = true;
+          },
+          () => {
+            game.keys.plunger = false;
+          }
+        );
+
+        bindHoldControl(
+          "touch-bullet",
+          () => {
+            game.keys.bulletTime = true;
+          },
+          () => {
+            game.keys.bulletTime = false;
+          }
+        );
+
+        const btnSound = document.getElementById("btn-sound");
+        btnSound.addEventListener("click", () => {
+          const muted = audio.toggleMute();
+          btnSound.textContent = muted ? "🔇 音效: 關" : "🔊 音效: 開";
+        });
+
+        document.getElementById("btn-tilt").addEventListener("click", () => {
+          audio.init();
+          game.triggerTilt();
+        });
+
+        document.getElementById("btn-restart").addEventListener("click", () => {
+          game.startNewGame();
+        });
+
+        document.getElementById("btn-start-game").addEventListener("click", () => {
+          game.startNewGame();
+        });
+
+        let lastTime = performance.now();
+        function gameLoop(now) {
+          const dt = (now - lastTime) / 1000;
+          lastTime = now;
+
+          game.update(dt);
+          game.render(now / 1000);
+
+          requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+      });
+    })();
+  </script>
+</body>
+</html>
